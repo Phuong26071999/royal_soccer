@@ -953,3 +953,22 @@ $shield: polygon(0 5%, 8% 3.5%, 20% 1%, 33% 0, 40% 2%, 50% .5%, 60% 2%, 67% 0, 8
 .sc-xi-tier { position: absolute; right: 2.2cqw; bottom: 2.2cqw; z-index: 3; width: 7.6cqw; height: 7.6cqw; display: grid; place-items: center; font-style: normal; font-family: $display; font-weight: 800; font-size: 5.2cqw; line-height: 1; border-radius: 1.4cqw; background: #f6d77a; color: #1b1608; box-shadow: 0 .6cqw 1.6cqw rgba(0, 0, 0, .4);
     &.t5 { background: #ffe27a; } &.t4 { background: #8fe0a8; } &.t3 { background: #e9eee9; } &.t2 { background: #d9a679; } &.t1 { background: #aebcb4; } }
 .sc-xi-foot span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* poster upgrade: depth on tiles, gold ring for top tier, header accent, footer divider */
+.sc-xi-in { border-radius: 2.4cqw; box-shadow: inset 0 0 0 .4cqw rgba(255, 255, 255, .14); }
+.sc-xi-tile:not(.crest) { border-radius: 1.6cqw;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, .14), transparent 38%),
+        linear-gradient(0deg, rgba(0, 0, 0, .38), transparent 42%),
+        color-mix(in srgb, var(--cc) 62%, #000);
+    &.alt { background:
+        linear-gradient(180deg, rgba(255, 255, 255, .14), transparent 38%),
+        linear-gradient(0deg, rgba(0, 0, 0, .38), transparent 42%),
+        color-mix(in srgb, var(--cc) 74%, #000); } }
+.sc-xi-tile:has(.sc-xi-tier.t5) { box-shadow: inset 0 0 0 .5cqw #ffe27a, 0 0 3cqw rgba(255, 226, 122, .35); }
+.sc-xi-no { text-shadow: 0 1cqw 2.4cqw rgba(0, 0, 0, .3); }
+.sc-xi-head b { background: linear-gradient(180deg, #fff 30%, color-mix(in srgb, var(--cc) 40%, #fff)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sc-xi-head::after { content: ""; display: block; width: 16cqw; height: .8cqw; margin: 3cqw auto 0; border-radius: 1cqw; background: #f6d77a; }
+.sc-xi-tile.crest img { filter: drop-shadow(0 0 4cqw rgba(255, 255, 255, .35)) drop-shadow(0 1cqw 2cqw rgba(0, 0, 0, .35)); }
+.sc-xi-foot { padding-top: 4cqw; border-top: .3cqw solid rgba(255, 255, 255, .28); }
+.sc-xi-foot span { display: inline-block; margin-top: 1.4cqw; padding: .8cqw 2.4cqw; border-radius: 3cqw; background: rgba(0, 0, 0, .28); font-size: 3.6cqw; letter-spacing: .08em; text-transform: uppercase; }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Member } from '../types';
 import { Club, DEFAULT_CARD_COLOR, inkFor } from '../clubs';
 import Avatar from './Avatar';
+import { shortName } from '../utils';
 
 interface Props {
   title: string;
@@ -20,6 +21,13 @@ const LineupPoster = ({ title, vs, starters, subs, club }: Props) => {
   const color = club?.color || DEFAULT_CARD_COLOR;
   const style = { '--cc': color, '--ci': inkFor(color) } as React.CSSProperties;
   const ordered = [...SHEET_ORDER.map((i) => starters[i]), ...starters.slice(SHEET_ORDER.length)].filter(Boolean) as Member[];
+  const tile = (m: Member, i: number) => (
+    <div key={m.id} className={`sc-xi-tile${i % 2 ? ' alt' : ''}`}>
+      <b className="sc-xi-no">{m.number ?? '--'}</b>
+      <span className="sc-xi-photo"><Avatar member={m} size={96} /></span>
+      <span className="sc-xi-name">{shortName(m.name)}</span>
+    </div>
+  );
   return (
     <article className="sc-xi" style={style} aria-label={`Đội hình xuất phát ${title}`}>
      <div className="sc-xi-in">
@@ -32,18 +40,17 @@ const LineupPoster = ({ title, vs, starters, subs, club }: Props) => {
           {club ? <img src={club.crest} alt={club.name} referrerPolicy="no-referrer" /> : <strong className="sc-xi-mark">V</strong>}
           <em>{title}</em>
         </div>
-        {ordered.map((m, i) => (
-          <div key={m.id} className={`sc-xi-tile${i % 2 ? ' alt' : ''}`}>
-            <b className="sc-xi-no">{m.number ?? '--'}</b>
-            <span className="sc-xi-photo"><Avatar member={m} size={96} /></span>
-            <span className="sc-xi-name">{m.name}</span>
-          </div>
-        ))}
+        {ordered.map((m, i) => tile(m, i))}
       </div>
+      {subs.length > 0 && (
+        <>
+          <h4 className="sc-xi-sub-title">Dự bị</h4>
+          <div className="sc-xi-grid">{subs.map((m, i) => tile(m, i))}</div>
+        </>
+      )}
       <footer className="sc-xi-foot">
         <b>{vs}</b>
         <span>Giao hữu</span>
-        {subs.length > 0 && <p><em>Dự bị:</em> {subs.map((m) => m.name).join(' · ')}</p>}
       </footer>
      </div>
     </article>

@@ -32,6 +32,7 @@ if (!process.env.ALLOWED_ORIGINS) {
 const soccerHandler = require('../api/soccer');
 const soccerAvatarHandler = require('../api/soccer-avatar');
 const giphyHandler = require('../api/giphy');
+const crestHandler = require('../api/crest');
 
 http
   .createServer((req, res) => {
@@ -39,6 +40,7 @@ http
     if (pathname === '/api/soccer') return soccerHandler(req, res);
     if (pathname === '/api/soccer-avatar') return soccerAvatarHandler(req, res);
     if (pathname === '/api/giphy') return giphyHandler(req, res);
+    if (pathname === '/api/crest') return crestHandler(req, res);
     res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ error: { code: 'not_found', message: 'Not found.' } }));

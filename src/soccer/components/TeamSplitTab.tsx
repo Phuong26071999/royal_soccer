@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Member, SoccerState } from '../types';
 import { shuffle, splitTeams, tierCounts } from '../teamSplit';
-import { TIERS, formatMatchDate, teamPower } from '../utils';
+import { TIERS, formatMatchDate, shortName, teamPower } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
 import LineupPoster from './LineupPoster';
+import { renderPosterBlob } from '../posterImage';
 import { CLUBS } from '../clubs';
 
 interface Props {
@@ -73,6 +74,45 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
   const pitchRef = useRef<HTMLDivElement>(null);
   const [poster, setPoster] = useState<'' | 'team1' | 'team2'>('');
   const [posterClub, setPosterClub] = useState('');
+  const [posterMsg, setPosterMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [posterBusy, setPosterBusy] = useState(false);
+
+  const posterBlob = () => {
+    const z = poster as 'team1' | 'team2';
+    return renderPosterBlob({ title: ZONE_LABEL[z], vs: `${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`,
+      starters: byZone[z], subs: byZone[z === 'team1' ? 'sub1' : 'sub2'], club: CLUBS.find((c) => c.id === posterClub) });
+  };
+  const downloadPoster = async () => {
+    setPosterBusy(true);
+    try {
+      const url = URL.createObjectURL(await posterBlob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `doi-hinh-${poster}.png`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setPosterMsg({ text: 'Đã tải ảnh poster.' });
+    } catch (err) {
+      setPosterMsg({ text: err instanceof Error ? err.message : 'Không tạo được ảnh.', error: true });
+    } finally {
+      setPosterBusy(false);
+    }
+  };
+  // Copy straight to the clipboard; browsers without image clipboard support get the PNG as a download instead.
+  const copyPoster = async () => {
+    setPosterBusy(true);
+    setPosterMsg(null);
+    try {
+      if (!navigator.clipboard || typeof ClipboardItem === 'undefined') throw new Error('unsupported');
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': posterBlob() })]);
+      setPosterMsg({ text: 'Đã sao chép ảnh. Dán thẳng vào Zalo, Messenger...' });
+      setPosterBusy(false);
+    } catch {
+      setPosterBusy(false);
+      setPosterMsg({ text: 'Trình duyệt chưa cho sao chép ảnh, đang tải về thay thế.' });
+      await downloadPoster();
+    }
+  };
   const sectionRef = useRef<HTMLElement>(null);
   const prevPos = useRef(new Map<string, { x: number; y: number; slot: string }>());
   const lastDeal = useRef(0);
@@ -269,7 +309,7 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
       {variant === 'token'
         ? <span className="sc-token-avatar sc-figure"><ClubBackdrop club={m.club} logo={m.clubLogo} /><Avatar member={m} size={36} /><Jersey number={m.number} id={m.id} /></span>
         : <span className="sc-token-avatar"><Avatar member={m} size={30} /><span className={`sc-tier t${m.tier}`}>{TIERS[m.tier].label}</span></span>}
-      <span className="sc-token-name">{m.name}</span>
+      <span className="sc-token-name">{shortName(m.name)}</span>
     </button>
   );
 
@@ -374,7 +414,7 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
       </div>
 
       <div className="sc-split-actions">
-        <button type="button" className="sc-btn ghost" onClick={() => setPoster('team1')} disabled={!byZone.team1.length && !byZone.team2.length}>
+        <button type="button" className="sc-btn ghost" onClick={() => { setPoster('team1'); setPosterMsg(null); }} disabled={!byZone.team1.length && !byZone.team2.length}>
           <i className="bx bx-image-alt" aria-hidden="true"></i>Poster đội hình
         </button>
         <button type="button" className="sc-btn ghost" onClick={copy}>
@@ -422,7 +462,15 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
             </div>
             <LineupPoster title={ZONE_LABEL[poster]} vs={`${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`}
               starters={byZone[poster]} subs={byZone[poster === 'team1' ? 'sub1' : 'sub2']} club={CLUBS.find((c) => c.id === posterClub)} />
-            <p className="sc-muted sc-poster-hint">Chụp màn hình poster để gửi nhóm.</p>
+            <div className="sc-row-gap sc-poster-actions">
+              <button type="button" className="sc-btn" onClick={copyPoster} disabled={posterBusy}>
+                <i className={`bx ${posterBusy ? 'bx-loader-alt bx-spin' : 'bx-copy-alt'}`} aria-hidden="true"></i>Sao chép ảnh
+              </button>
+              <button type="button" className="sc-btn ghost" onClick={downloadPoster} disabled={posterBusy}>
+                <i className="bx bx-download" aria-hidden="true"></i>Tải ảnh PNG
+              </button>
+            </div>
+            {posterMsg && <p className={posterMsg.error ? 'sc-error' : 'sc-muted sc-poster-hint'} role="status">{posterMsg.text}</p>}
           </div>
         </div>
       )}

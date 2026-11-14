@@ -186,3 +186,9 @@ export function defaultStats(rating: number): PlayerStats {
 
 export const statsOf = (m: { tier: number; goals: number; stats?: PlayerStats }): PlayerStats =>
   m.stats || defaultStats(ratingOf(m));
+
+/** Short display name for tight spots: "Phí Võ Quang Vinh" -> "Vinh Phí" (given name first); 1-2 words stay as written. */
+export function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  return parts.length > 2 ? `${parts[parts.length - 1]} ${parts[0]}` : name.trim();
+}

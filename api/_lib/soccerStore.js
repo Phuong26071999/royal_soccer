@@ -82,6 +82,9 @@ function validateState(input) {
       tier: int(m.tier, 1, 5, `members[${i}].tier`),
       goals: int(m.goals, 0, 9999, `members[${i}].goals`),
       avatar: avatarUrl(m.avatar, `members[${i}].avatar`),
+      club: typeof m.club === 'string' && /^[a-z0-9-]{1,30}$/.test(m.club) ? m.club : '',
+      clubName: typeof m.clubName === 'string' ? m.clubName.trim().slice(0, 40) : '',
+      clubLogo: avatarUrl(m.clubLogo, `members[${i}].clubLogo`),
     };
   });
   const knownId = (v, field) => {
@@ -173,15 +176,17 @@ async function loadState(env = process.env) {
 
 const AVATAR_KEY = (memberId) => `soccer:avatar:${memberId}`;
 const AVATAR_DIR = path.join(path.dirname(LOCAL_FILE), 'avatars');
-const MAX_AVATAR_BYTES = 80 * 1024;
-const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+// Photos are small JPEGs (a few KB); animated GIFs are stored as uploaded, up to 400 KB.
+const MAX_AVATAR_BYTES = 400 * 1024;
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 /** Checks a "data:image/...;base64,..." string and returns { type, data }. */
 function parseAvatarDataUrl(value) {
-  const match = typeof value === 'string' && value.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
-  if (!match || !AVATAR_TYPES.includes(match[1])) fail('photo must be a JPEG, PNG or WebP image');
+  const match = typeof value === 'string' && value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([A-Za-z0-9+/=]+)$/);
+  if (!match || !AVATAR_TYPES.includes(match[1])) fail('photo must be a JPEG, PNG, WebP or GIF image');
   const bytes = Buffer.from(match[2], 'base64');
   if (!bytes.length || bytes.length > MAX_AVATAR_BYTES) fail('photo is too large');
+  if (match[1] === 'image/gif' && !bytes.subarray(0, 4).toString('latin1').startsWith('GIF8')) fail('photo is not a valid GIF');
   return { type: match[1], data: match[2] };
 }
 

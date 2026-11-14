@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Member, SoccerState } from '../types';
 import { TIERS, monthKey, slugify, uniqueId } from '../utils';
-import Avatar from './Avatar';
+import Avatar, { ClubBackdrop } from './Avatar';
 import PodiumFigure from './PodiumFigure';
 
 interface Props {
@@ -40,7 +40,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
     const name = newName.trim();
     if (!name) return;
     const id = uniqueId(slugify(name), new Set(state.members.map((m) => m.id)));
-    onAdd({ id, name, number: null, tier: 3, goals: 0, avatar: '' });
+    onAdd({ id, name, number: null, tier: 3, goals: 0, avatar: '', club: '' });
     setNewName('');
   };
 
@@ -94,7 +94,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
               <span className={`sc-rating t${m.tier}`}><b>{TIERS[m.tier].label}</b><small>{TIERS[m.tier].name}</small></span>
               <span className={`sc-shirt${m.number === null ? ' empty' : ''}`} title="Số áo">{m.number ?? '--'}</span>
             </span>
-            <span className="sc-card-avatar"><Avatar member={m} size={72} /></span>
+            <span className="sc-card-avatar"><ClubBackdrop club={m.club} logo={m.clubLogo} /><Avatar member={m} size={72} /></span>
             <span className="sc-card-name">{m.name}</span>
             <span className="sc-card-stats">
               <span title="Số bàn thắng"><i className="bx bx-football" aria-hidden="true"></i><b>{m.goals}</b> bàn</span>

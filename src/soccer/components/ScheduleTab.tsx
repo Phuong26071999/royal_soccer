@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Match, SoccerState } from '../types';
 import { formatMatchDate, randomId } from '../utils';
 import Avatar from './Avatar';
+import MonthCalendar from './MonthCalendar';
 
 interface Props {
   state: SoccerState;
@@ -24,7 +25,7 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, featured }: {
   const d = new Date(match.date);
   const valid = !Number.isNaN(d.getTime());
   return (
-    <article className={`sc-match${featured ? ' featured' : ''}`}>
+    <article id={`match-${match.id}`} className={`sc-match${featured ? ' featured' : ''}`}>
       <div className="sc-match-head">
         <div className="sc-date-block" aria-hidden="true">
           <small>{valid ? d.toLocaleDateString('vi-VN', { weekday: 'short' }) : ''}</small>
@@ -86,8 +87,18 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove }: Props) => {
   };
 
   const cardProps = { state, isAdmin, onUpdate, onRemove };
+  const showMatch = (id: string) => {
+    const el = document.getElementById(`match-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('flash');
+    void el.offsetWidth; // restart the highlight animation
+    el.classList.add('flash');
+  };
   return (
     <section aria-label="Lịch đá">
+      <MonthCalendar matches={state.matches} onPickMatch={showMatch}
+        onPickEmptyDay={isAdmin ? (day) => { setForm((f) => ({ ...f, date: `${day}T19:00` })); setError(''); document.querySelector('.sc-match-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } : undefined} />
       {isAdmin && (
         <form className="sc-panel sc-match-form" onSubmit={submit} noValidate>
           <h3>Tạo lịch đá</h3>

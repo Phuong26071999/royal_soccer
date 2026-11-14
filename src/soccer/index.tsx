@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SoccerApiError, fetchState, saveState, verifyPin } from './api';
 import { Member, SoccerState } from './types';
-import { monthKey } from './utils';
+import { monthKey, randomId } from './utils';
 import MembersTab from './components/MembersTab';
 import MemberDetail from './components/MemberDetail';
 import TeamSplitTab from './components/TeamSplitTab';
@@ -212,6 +212,14 @@ const SoccerPage = () => {
             onSaveToMatch={(matchId, teams) => {
               update((s) => ({ ...s, matches: s.matches.map((m) => (m.id === matchId ? { ...m, teams } : m)) }));
               notify('Đã lưu đội hình vào trận.');
+            }}
+            onSaveHistory={(teams) => {
+              // Dated just past the 3h "upcoming" window so it lands straight in "Đã đá"; the score is filled in there.
+              const d = new Date(Date.now() - (3 * 60 + 1) * 60000);
+              const pad = (n: number) => String(n).padStart(2, '0');
+              const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+              update((s) => ({ ...s, matches: [...s.matches, { id: randomId(), date, location: 'Lưu từ Chia đội', note: '', score: '', teams }] }));
+              notify('Đã lưu vào lịch sử đấu. Nhập tỉ số ở tab Lịch đá.');
             }} />
         )}
         {tab === 'fund' && (

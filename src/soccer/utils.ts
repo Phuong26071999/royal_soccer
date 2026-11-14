@@ -68,10 +68,24 @@ export const teamPower = (team: Member[]) => team.reduce((sum, m) => sum + m.tie
  * Crops an image file to a centred square and shrinks it to a small JPEG
  * data URL, so profile photos stay a few KB no matter what the phone shoots.
  */
+export const MAX_GIF_BYTES = 400 * 1024;
+
 export function resizePhoto(file: File, size = 256, quality = 0.82): Promise<string> {
   return new Promise((resolve, reject) => {
     if (!file.type.startsWith('image/')) {
       reject(new Error('Hãy chọn một file ảnh.'));
+      return;
+    }
+    // A canvas would flatten the animation, so GIFs go up untouched (the avatar is cropped square by CSS).
+    if (file.type === 'image/gif') {
+      if (file.size > MAX_GIF_BYTES) {
+        reject(new Error(`GIF quá nặng (${Math.round(file.size / 1024)} KB). Chọn GIF dưới ${MAX_GIF_BYTES / 1024} KB.`));
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Không đọc được file GIF này.'));
+      reader.readAsDataURL(file);
       return;
     }
     const url = URL.createObjectURL(file);
@@ -94,6 +108,59 @@ export function resizePhoto(file: File, size = 256, quality = 0.82): Promise<str
     img.onerror = () => {
       URL.revokeObjectURL(url);
       reject(new Error('Không đọc được ảnh này. Thử ảnh JPG hoặc PNG khác.'));
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * Turns a Giphy page/embed link into the direct GIF file (media.giphy.com/media/<id>/giphy.gif).
+ * Other URLs, including direct Giphy media links, come back unchanged; returns null for a short gph.is link,
+ * which cannot be resolved in the browser.
+ */
+export function normalizeGiphyUrl(input: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(input);
+  } catch {
+    return input;
+  }
+  const host = url.hostname.toLowerCase();
+  if (host === 'gph.is') return null;
+  if (host !== 'giphy.com' && host !== 'www.giphy.com') return input;
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (!['gifs', 'stickers', 'embed', 'clips'].includes(parts[0]) || !parts[1]) return input;
+  const last = parts[parts.length - 1];
+  const id = (last.match(/-([A-Za-z0-9]+)$/) || [null, last])[1];
+  return id && /^[A-Za-z0-9]+$/.test(id) ? `https://media.giphy.com/media/${id}/giphy.gif` : input;
+}
+
+/** Fits a club logo into a 192px transparent PNG (no crop, keeps transparency); GIFs go up untouched like profile GIFs. */
+export function resizeLogo(file: File, size = 192): Promise<string> {
+  if (file.type === 'image/gif') return resizePhoto(file);
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Hãy chọn một file ảnh.'));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.min(size / img.naturalWidth, size / img.naturalHeight);
+      const w = img.naturalWidth * scale;
+      const h = img.naturalHeight * scale;
+      URL.revokeObjectURL(url);
+      if (!ctx) { reject(new Error('Trình duyệt không xử lý được ảnh này.')); return; }
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Không đọc được ảnh này. Thử ảnh PNG hoặc JPG khác.'));
     };
     img.src = url;
   });

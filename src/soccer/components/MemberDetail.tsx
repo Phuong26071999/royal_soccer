@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadAvatar } from '../api';
 import { Member, SoccerState } from '../types';
-import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto } from '../utils';
-import Avatar from './Avatar';
+import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto, resizeLogo, normalizeGiphyUrl } from '../utils';
+import Avatar, { ClubBackdrop } from './Avatar';
+import { CLUBS, CUSTOM_CLUB, crestOf } from '../clubs';
 
 interface Props {
   member: Member;
@@ -28,6 +29,13 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
   const [tier, setTier] = useState(member.tier);
   const [goals, setGoals] = useState(member.goals);
   const [avatar, setAvatar] = useState(member.avatar);
+  const [club, setClub] = useState(member.club || '');
+  const [clubName, setClubName] = useState(member.clubName || '');
+  const [clubLogo, setClubLogo] = useState(member.clubLogo || '');
+  const [logoError, setLogoError] = useState('');
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const [logoDraft, setLogoDraft] = useState(member.clubLogo?.startsWith('https://') ? member.clubLogo : '');
   const [nameError, setNameError] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -37,9 +45,10 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
   const matchesPlayed = state.matches.filter((m) => m.teams.some((t) => t.includes(member.id))).length;
   const draftNumber = number.trim() === '' ? null : Number(number);
   const sameNumber = draftNumber !== null ? state.members.find((m) => m.id !== member.id && m.number === draftNumber) : undefined;
-  const preview = { ...member, name: name.trim() || member.name, avatar };
+  const preview = { ...member, name: name.trim() || member.name, avatar, club, clubName, clubLogo };
   const dirty = name.trim() !== member.name || draftNumber !== member.number || tier !== member.tier
-    || goals !== member.goals || avatar !== member.avatar;
+    || goals !== member.goals || avatar !== member.avatar || club !== (member.club || '')
+    || (club === CUSTOM_CLUB && (clubName.trim() !== (member.clubName || '') || clubLogo !== (member.clubLogo || '')));
 
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -66,8 +75,43 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
     };
   }, [requestClose]);
 
+  const onPickLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setLogoError('');
+    setLogoBusy(true);
+    try {
+      const uploaded = await uploadAvatar(`club-${member.id}`, await resizeLogo(file));
+      setClubLogo(uploaded);
+      setLogoDraft('');
+    } catch (err) {
+      setLogoError(err instanceof Error ? err.message : 'Không tải logo lên được.');
+    } finally {
+      setLogoBusy(false);
+    }
+  };
+  /** Applies the typed logo link; returns the final logo URL, or null when the link is not usable. */
+  const applyLogoDraft = (): string | null => {
+    const typed = logoDraft.trim();
+    if (!typed) return clubLogo;
+    const url = typed ? normalizeGiphyUrl(typed) : '';
+    if (url === null) { setLogoError('Link rút gọn gph.is chưa dùng được. Dùng link giphy.com/gifs/...'); return null; }
+    if (!/^https:\/\//i.test(url)) { setLogoError('Link logo phải bắt đầu bằng https://'); return null; }
+    setLogoError('');
+    setClubLogo(url);
+    setLogoDraft(url);
+    return url;
+  };
+
   const applyLink = () => {
-    const url = link.trim();
+    const typed = link.trim();
+    const url = typed ? normalizeGiphyUrl(typed) : '';
+    if (url === null) {
+      setPhotoError('Link rút gọn gph.is chưa dùng được. Mở GIF trên Giphy rồi copy link giphy.com/gifs/...');
+      return false;
+    }
+    if (url !== typed) setLink(url);
     if (url && !/^https:\/\//i.test(url)) {
       setPhotoError('Link ảnh phải bắt đầu bằng https://');
       return false;
@@ -85,14 +129,21 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
       setNumberError('Số áo từ 0 đến 99.');
       return;
     }
-    const url = link.trim();
+    let nextLogo = clubLogo;
+    if (club === CUSTOM_CLUB && logoDraft.trim()) {
+      const applied = applyLogoDraft();
+      if (applied === null) return;
+      nextLogo = applied;
+    }
+    const typed = link.trim();
     let nextAvatar = avatar;
-    if (url && url !== avatar) {
+    if (typed) {
+      const url = normalizeGiphyUrl(typed);
       if (!applyLink()) return;
-      nextAvatar = url;
+      if (url && url !== avatar) nextAvatar = url;
     }
     if (dirty || nextAvatar !== member.avatar) {
-      onChange({ ...member, name: trimmed, number: draftNumber, tier, goals, avatar: nextAvatar });
+      onChange({ ...member, name: trimmed, number: draftNumber, tier, goals, avatar: nextAvatar, club, clubName: club === CUSTOM_CLUB ? clubName.trim().slice(0, 40) : '', clubLogo: club === CUSTOM_CLUB ? nextLogo : '' });
     }
     onClose();
   };
@@ -121,12 +172,15 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
         <button type="button" className="sc-close" onClick={requestClose} aria-label="Đóng"><i className="bx bx-x"></i></button>
 
         <div className="sc-detail-head">
-          {isAdmin ? (
-            <button type="button" className="sc-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Đổi ảnh đại diện">
-              <Avatar member={preview} size={88} />
-              <span className="sc-photo-badge" aria-hidden="true"><i className={`bx ${uploading ? 'bx-loader-alt bx-spin' : 'bx-camera'}`}></i></span>
-            </button>
-          ) : <Avatar member={member} size={88} />}
+          <span className="sc-club-wrap">
+            <ClubBackdrop club={club} logo={clubLogo} />
+            {isAdmin ? (
+              <button type="button" className="sc-photo-btn" onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Đổi ảnh đại diện">
+                <Avatar member={preview} size={88} />
+                <span className="sc-photo-badge" aria-hidden="true"><i className={`bx ${uploading ? 'bx-loader-alt bx-spin' : 'bx-camera'}`}></i></span>
+              </button>
+            ) : <Avatar member={member} size={88} />}
+          </span>
           <div className="sc-detail-id">
             {isAdmin ? (
               <>
@@ -172,6 +226,45 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
           )}
         </div>
 
+        <div className="sc-club-picker">
+          <span className="sc-label">Đội bóng yêu thích</span>
+          {isAdmin ? (
+            <div className="sc-club-list" role="radiogroup" aria-label="Đội bóng yêu thích">
+              <button type="button" role="radio" aria-checked={!club} className={`none${!club ? ' on' : ''}`} onClick={() => setClub('')}>Không</button>
+              {CLUBS.map((c) => (
+                <button key={c.id} type="button" role="radio" aria-checked={club === c.id} title={c.name} aria-label={c.name}
+                  className={club === c.id ? 'on' : ''} onClick={() => setClub(c.id)}>
+                  <img src={c.crest} alt="" loading="lazy" referrerPolicy="no-referrer" />
+                </button>
+              ))}
+              <button type="button" role="radio" aria-checked={club === CUSTOM_CLUB} className={`none${club === CUSTOM_CLUB ? ' on' : ''}`} onClick={() => setClub(CUSTOM_CLUB)}>
+                <span><i className="bx bx-plus" aria-hidden="true"></i>Khác</span>
+              </button>
+            </div>
+          ) : <span className="sc-muted">{crestOf(member)?.name || 'Chưa chọn'}</span>}
+          {isAdmin && club === CUSTOM_CLUB && (
+            <div className="sc-custom-club">
+              <span className="sc-club-preview">{clubLogo ? <img src={clubLogo} alt="" referrerPolicy="no-referrer" onError={() => setLogoError('Không tải được logo từ link này.')} /> : <i className="bx bx-shield-quarter" aria-hidden="true"></i>}</span>
+              <div className="sc-custom-club-fields">
+                <label className="sc-link-field"><span>Tên đội</span>
+                  <input value={clubName} maxLength={40} placeholder="VD: Hà Nội FC" onChange={(e) => setClubName(e.target.value)} /></label>
+                <label className="sc-link-field"><span>Link logo (https, hỗ trợ cả link Giphy)</span>
+                  <input value={logoDraft} placeholder="https://..." maxLength={400}
+                    onChange={(e) => { setLogoDraft(e.target.value); setLogoError(''); }}
+                    onBlur={() => logoDraft.trim() && applyLogoDraft()} /></label>
+                <div className="sc-row-gap">
+                  <button type="button" className="sc-btn small" onClick={() => logoFileRef.current?.click()} disabled={logoBusy}>
+                    <i className={`bx ${logoBusy ? 'bx-loader-alt bx-spin' : 'bx-image-add'}`} aria-hidden="true"></i>{logoBusy ? 'Đang tải lên' : 'Tải logo từ máy'}
+                  </button>
+                  {clubLogo && <button type="button" className="sc-btn ghost small" onClick={() => { setClubLogo(''); setLogoDraft(''); setLogoError(''); }}><i className="bx bx-trash" aria-hidden="true"></i>Xóa logo</button>}
+                </div>
+                <input ref={logoFileRef} type="file" accept="image/*" hidden onChange={onPickLogo} />
+                {logoError && <small className="sc-error" role="alert">{logoError}</small>}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="sc-detail-grid">
           <div className="sc-stat">
             <small>Bàn thắng</small>
@@ -212,9 +305,12 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
               </div>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
               <label className="sc-link-field">
-                <span>Hoặc dán link ảnh</span>
+                <span>Hoặc dán link ảnh / link GIF từ Giphy</span>
                 <input value={link} onChange={(e) => { setLink(e.target.value); setPhotoError(''); }} onBlur={applyLink} placeholder="https://..." maxLength={400} />
               </label>
+              <a className="sc-btn ghost small sc-giphy" href="https://giphy.com/search/football" target="_blank" rel="noopener noreferrer">
+                <i className="bx bx-link-external" aria-hidden="true"></i>Tìm GIF trên Giphy
+              </a>
               {photoError && <small className="sc-error" role="alert">{photoError}</small>}
             </div>
             {fundUnlocked ? (

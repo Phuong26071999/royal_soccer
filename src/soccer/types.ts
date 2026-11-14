@@ -8,6 +8,11 @@ export interface Member {
   goals: number;
   /** https image URL or an uploaded photo (/api/soccer-avatar?...); initials when empty. */
   avatar: string;
+  /** Favourite football club id (see clubs.ts); its crest shows faded behind the avatar. */
+  club?: string;
+  /** With club === 'custom': the member's own club (name + logo URL or uploaded logo). */
+  clubName?: string;
+  clubLogo?: string;
 }
 
 export interface Expense {

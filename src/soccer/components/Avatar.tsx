@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Member } from '../types';
 import { avatarColor, initials } from '../utils';
+import { crestOf } from '../clubs';
 
 interface Props {
   member: Pick<Member, 'id' | 'name' | 'avatar'>;
@@ -21,6 +22,15 @@ const Avatar = ({ member, size = 48 }: Props) => {
       {initials(member.name)}
     </span>
   );
+};
+
+/** Faded crest of the member's favourite club; render it first inside a positioned parent, the avatar sits on top. */
+export const ClubBackdrop = ({ club, name, logo }: { club?: string; name?: string; logo?: string }) => {
+  const c = crestOf({ club, clubName: name, clubLogo: logo });
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [club, logo]);
+  if (!c || broken) return null;
+  return <img className="sc-club-bg" src={c.crest} alt="" aria-hidden="true" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
 };
 
 export default Avatar;

@@ -15,9 +15,9 @@ const { RequestError, send, getClientIp, readBody, assertJsonRequest } = require
 const { hitLimit } = require('./_lib/rateLimit');
 const { ValidationError, getBackend, loadState, parseAvatarDataUrl, saveAvatar, loadAvatar } = require('./_lib/soccerStore');
 
-const MAX_BODY_BYTES = 120 * 1024;
+const MAX_BODY_BYTES = 600 * 1024; // 400 KB GIF + base64 overhead
 const UPLOAD_LIMIT = { limit: 30, windowSeconds: 10 * 60 };
-const ID = /^[a-z0-9-]{1,40}$/;
+const ID = /^(?:club-)?[a-z0-9-]{1,40}$/; // club-<memberId> holds a member's custom club logo
 
 const MESSAGES = {
   method_not_allowed: 'Method not allowed.',
@@ -59,7 +59,8 @@ async function handler(req, res) {
     const id = String((body && body.id) || '');
     if (!ID.test(id)) throw new RequestError(400, 'invalid_request');
     const state = await loadState();
-    if (!state.members.some((m) => m.id === id)) throw new RequestError(400, 'invalid_request');
+    const ownerId = id.startsWith('club-') ? id.slice(5) : id;
+    if (!state.members.some((m) => m.id === ownerId)) throw new RequestError(400, 'invalid_request');
     const photo = parseAvatarDataUrl(body.photo);
 
     const limit = await hitLimit('soccer-avatar', getClientIp(req), UPLOAD_LIMIT);

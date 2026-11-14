@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { Member, SoccerState } from '../types';
 import { shuffle, splitTeams, tierCounts } from '../teamSplit';
 import { TIERS, formatMatchDate, teamPower } from '../utils';
-import Avatar from './Avatar';
+import Avatar, { ClubBackdrop } from './Avatar';
 
 interface Props {
   state: SoccerState;
   isAdmin: boolean;
   onSaveToMatch: (matchId: string, teams: string[][]) => void;
+  /** Records the current split (starters + subs per team) as a finished match in the history. */
+  onSaveHistory: (teams: string[][]) => void;
 }
 
 const TEAM_SIZE = 5; // 5v5 pitch
@@ -51,7 +53,7 @@ const Jersey = ({ number, id }: { number: number | null; id: string }) => (
   </svg>
 );
 
-const TeamSplitTab = ({ state, isAdmin, onSaveToMatch }: Props) => {
+const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) => {
   const [zones, setZones] = useState<Record<string, Zone>>(() => initialZones(state));
   const [selected, setSelected] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -261,7 +263,7 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch }: Props) => {
       }}>
       <span className="sc-grip" aria-hidden="true"><i className="bx bx-grid-vertical"></i></span>
       {variant === 'token'
-        ? <span className="sc-token-avatar sc-figure"><Avatar member={m} size={36} /><Jersey number={m.number} id={m.id} /></span>
+        ? <span className="sc-token-avatar sc-figure"><ClubBackdrop club={m.club} logo={m.clubLogo} /><Avatar member={m} size={36} /><Jersey number={m.number} id={m.id} /></span>
         : <span className="sc-token-avatar"><Avatar member={m} size={30} /><span className={`sc-tier t${m.tier}`}>{TIERS[m.tier].label}</span></span>}
       <span className="sc-token-name">{m.name}</span>
     </button>
@@ -371,6 +373,12 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch }: Props) => {
         <button type="button" className="sc-btn ghost" onClick={copy}>
           <i className={`bx ${copied ? 'bx-check' : 'bx-copy'}`} aria-hidden="true"></i>{copied ? 'Đã sao chép' : 'Sao chép gửi nhóm'}
         </button>
+        {isAdmin && (
+          <button type="button" className="sc-btn ghost" disabled={!byZone.team1.length || !byZone.team2.length}
+            onClick={() => onSaveHistory([squad('team1'), squad('team2')].map((t) => t.map((m) => m.id)))}>
+            <i className="bx bx-history" aria-hidden="true"></i>Lưu vào lịch sử đấu
+          </button>
+        )}
         {isAdmin && (upcoming.length ? (
           <div className="sc-save-match">
             <label className="sc-select">

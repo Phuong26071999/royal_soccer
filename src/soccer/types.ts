@@ -13,6 +13,16 @@ export interface Member {
   /** With club === 'custom': the member's own club (name + logo URL or uploaded logo). */
   clubName?: string;
   clubLogo?: string;
+  /** With club === 'custom': #rrggbb colour that themes the player card. */
+  clubColor?: string;
+  /** Avatar frame: circle (default), rounded, square or hex. */
+  avatarShape?: string;
+  /** Six card attributes 1-99; when absent they are estimated from the rating. */
+  stats?: PlayerStats;
+}
+
+export interface PlayerStats {
+  pac: number; sho: number; pas: number; dri: number; def: number; phy: number;
 }
 
 export interface Expense {

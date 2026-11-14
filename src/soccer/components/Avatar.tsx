@@ -4,7 +4,7 @@ import { avatarColor, initials } from '../utils';
 import { crestOf } from '../clubs';
 
 interface Props {
-  member: Pick<Member, 'id' | 'name' | 'avatar'>;
+  member: Pick<Member, 'id' | 'name' | 'avatar'> & { avatarShape?: string };
   size?: number;
 }
 
@@ -14,11 +14,12 @@ const Avatar = ({ member, size = 48 }: Props) => {
   // A new photo gets a fresh chance to load.
   useEffect(() => setBroken(false), [member.avatar]);
   const style = { width: size, height: size, fontSize: size * 0.38 };
+  const shape = member.avatarShape && member.avatarShape !== 'circle' ? ` shape-${member.avatarShape}` : '';
   if (member.avatar && !broken) {
-    return <img className="sc-avatar" src={member.avatar} alt="" style={style} loading="lazy" onError={() => setBroken(true)} />;
+    return <img className={`sc-avatar${shape}`} src={member.avatar} alt="" style={style} loading="lazy" onError={() => setBroken(true)} />;
   }
   return (
-    <span className="sc-avatar" style={{ ...style, background: avatarColor(member.id) }} aria-hidden="true">
+    <span className={`sc-avatar${shape}`} style={{ ...style, background: avatarColor(member.id) }} aria-hidden="true">
       {initials(member.name)}
     </span>
   );

@@ -239,7 +239,7 @@ const SoccerPage = () => {
       </main>
 
       {openMember && (
-        <MemberDetail member={openMember} state={data} isAdmin={canEdit} fundUnlocked={fundUnlocked} onChange={updateMember}
+        <MemberDetail key={openMember.id} member={openMember} state={data} isAdmin={canEdit} fundUnlocked={fundUnlocked} onChange={updateMember}
           onTogglePaid={togglePaid} onRemove={removeMember} onClose={() => setOpenId(null)} />
       )}
 

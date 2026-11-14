@@ -56,6 +56,18 @@ function avatarUrl(v, field) {
   return s;
 }
 
+/** Six card attributes 1-99, or undefined when absent/invalid (the page then estimates them). */
+function cardStats(v) {
+  if (!isObj(v)) return undefined;
+  const out = {};
+  for (const key of ['pac', 'sho', 'pas', 'dri', 'def', 'phy']) {
+    const n = v[key];
+    if (!Number.isInteger(n) || n < 1 || n > 99) return undefined;
+    out[key] = n;
+  }
+  return out;
+}
+
 /** Shirt number 0-99, or null when not set. */
 function shirtNumber(v, field) {
   if (v === undefined || v === null || v === '') return null;
@@ -85,6 +97,9 @@ function validateState(input) {
       club: typeof m.club === 'string' && /^[a-z0-9-]{1,30}$/.test(m.club) ? m.club : '',
       clubName: typeof m.clubName === 'string' ? m.clubName.trim().slice(0, 40) : '',
       clubLogo: avatarUrl(m.clubLogo, `members[${i}].clubLogo`),
+      avatarShape: ['circle', 'rounded', 'square', 'hex'].includes(m.avatarShape) ? m.avatarShape : '',
+      stats: cardStats(m.stats),
+      clubColor: typeof m.clubColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(m.clubColor) ? m.clubColor.toLowerCase() : '',
     };
   });
   const knownId = (v, field) => {

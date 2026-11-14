@@ -1,7 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Member, SoccerState } from '../types';
-import { TIERS, monthKey, slugify, uniqueId } from '../utils';
+import { TIERS, monthKey, ratingOf, slugify, uniqueId } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
+import PlayerCard from './PlayerCard';
+import CardStylePicker from './CardStylePicker';
+import { useCardStyle } from '../cardStyle';
 import PodiumFigure from './PodiumFigure';
 
 interface Props {
@@ -17,6 +20,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('number');
   const [newName, setNewName] = useState('');
+  const [cardStyle] = useCardStyle();
   const paidNow = new Set(state.fund.payments[monthKey()] || []);
 
   const list = useMemo(() => {
@@ -71,6 +75,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
       )}
 
       <div className="sc-toolbar">
+        <CardStylePicker />
         <label className="sc-search">
           <i className="bx bx-search" aria-hidden="true"></i>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tìm tên hoặc số áo" aria-label="Tìm tên hoặc số áo" />
@@ -86,25 +91,39 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
         </label>
       </div>
 
-      <div className="sc-members">
-        {list.map((m) => (
-          <button key={m.id} type="button" className="sc-member" onClick={() => onOpen(m)}
-            aria-label={`${m.name}${m.number !== null ? `, số áo ${m.number}` : ''}, tier ${TIERS[m.tier].label}, ${m.goals} bàn, ${paidNow.has(m.id) ? 'đã đóng quỹ' : 'chưa đóng quỹ'}`}>
-            <span className="sc-card-top">
-              <span className={`sc-rating t${m.tier}`}><b>{TIERS[m.tier].label}</b><small>{TIERS[m.tier].name}</small></span>
-              <span className={`sc-shirt${m.number === null ? ' empty' : ''}`} title="Số áo">{m.number ?? '--'}</span>
-            </span>
-            <span className="sc-card-avatar"><ClubBackdrop club={m.club} logo={m.clubLogo} /><Avatar member={m} size={72} /></span>
-            <span className="sc-card-name">{m.name}</span>
-            <span className="sc-card-stats">
-              <span title="Số bàn thắng"><i className="bx bx-football" aria-hidden="true"></i><b>{m.goals}</b> bàn</span>
-              <span className={`sc-paid${paidNow.has(m.id) ? ' yes' : ''}`}>
-                <i className={`bx ${paidNow.has(m.id) ? 'bx-check-circle' : 'bx-time-five'}`} aria-hidden="true"></i>
-                {paidNow.has(m.id) ? 'Đã đóng quỹ' : 'Chưa đóng'}
+      <div className={`sc-members ${cardStyle}`}>
+        {list.map((m) => {
+          const paid = paidNow.has(m.id);
+          const matches = state.matches.filter((x) => x.teams.some((t) => t.includes(m.id))).length;
+          const label = `${m.name}${m.number !== null ? `, số áo ${m.number}` : ''}, tier ${TIERS[m.tier].label}, ${m.goals} bàn, ${paid ? 'đã đóng quỹ' : 'chưa đóng quỹ'}`;
+          if (cardStyle !== 'compact') {
+            return (
+              <button key={m.id} type="button" className="sc-member sc-member-card" onClick={() => onOpen(m)} aria-label={label}>
+                <PlayerCard member={m} matches={matches} variant={cardStyle} />
+                <span className={`sc-paid-flag${paid ? ' yes' : ''}`}>
+                  <i className={`bx ${paid ? 'bx-check-circle' : 'bx-time-five'}`} aria-hidden="true"></i>{paid ? 'Đã đóng quỹ' : 'Chưa đóng'}
+                </span>
+              </button>
+            );
+          }
+          return (
+            <button key={m.id} type="button" className="sc-member" onClick={() => onOpen(m)} aria-label={label}>
+              <span className="sc-card-top">
+                <span className={`sc-rating t${m.tier}`}><b>{TIERS[m.tier].label}</b><small>{TIERS[m.tier].name} · {ratingOf(m)}</small></span>
+                <span className={`sc-shirt${m.number === null ? ' empty' : ''}`} title="Số áo">{m.number ?? '--'}</span>
               </span>
-            </span>
-          </button>
-        ))}
+              <span className="sc-card-avatar"><ClubBackdrop club={m.club} logo={m.clubLogo} /><Avatar member={m} size={72} /></span>
+              <span className="sc-card-name">{m.name}</span>
+              <span className="sc-card-stats">
+                <span title="Số bàn thắng"><i className="bx bx-football" aria-hidden="true"></i><b>{m.goals}</b> bàn</span>
+                <span className={`sc-paid${paid ? ' yes' : ''}`}>
+                  <i className={`bx ${paid ? 'bx-check-circle' : 'bx-time-five'}`} aria-hidden="true"></i>
+                  {paid ? 'Đã đóng quỹ' : 'Chưa đóng'}
+                </span>
+              </span>
+            </button>
+          );
+        })}
         {list.length === 0 && <p className="sc-empty">Không tìm thấy thành viên nào.</p>}
       </div>
 

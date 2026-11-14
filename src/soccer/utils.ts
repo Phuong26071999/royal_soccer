@@ -1,4 +1,4 @@
-import { Member } from './types';
+import { Member, PlayerStats } from './types';
 
 export const TIERS: Record<number, { label: string; name: string }> = {
   5: { label: 'S', name: 'Xuất sắc' },
@@ -165,3 +165,24 @@ export function resizeLogo(file: File, size = 192): Promise<string> {
     img.src = url;
   });
 }
+
+/**
+ * FIFA-style overall rating 50-99: tier sets the base (D 50, C 60, B 70, A 80, S 90),
+ * every 2 goals add 1 point, capped at +9.
+ */
+export const ratingOf = (m: { tier: number; goals: number }): number =>
+  Math.min(99, 50 + (m.tier - 1) * 10 + Math.min(9, Math.floor(m.goals / 2)));
+
+export const STAT_KEYS = ['pac', 'sho', 'pas', 'dri', 'def', 'phy'] as const;
+export const STAT_LABELS: Record<(typeof STAT_KEYS)[number], string> = { pac: 'Tốc độ', sho: 'Sút', pas: 'Chuyền', dri: 'Rê bóng', def: 'Thủ', phy: 'Thể lực' };
+
+// How each attribute sits relative to the overall rating (used until someone enters real values).
+const STAT_OFFSETS = [-2, -4, 0, 0, -12, -2];
+
+export function defaultStats(rating: number): PlayerStats {
+  const v = (i: number) => Math.max(20, Math.min(99, rating + STAT_OFFSETS[i]));
+  return { pac: v(0), sho: v(1), pas: v(2), dri: v(3), def: v(4), phy: v(5) };
+}
+
+export const statsOf = (m: { tier: number; goals: number; stats?: PlayerStats }): PlayerStats =>
+  m.stats || defaultStats(ratingOf(m));

@@ -3,6 +3,8 @@ import { Member, SoccerState } from '../types';
 import { shuffle, splitTeams, tierCounts } from '../teamSplit';
 import { TIERS, formatMatchDate, teamPower } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
+import LineupPoster from './LineupPoster';
+import { CLUBS } from '../clubs';
 
 interface Props {
   state: SoccerState;
@@ -69,6 +71,8 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
   const stopShuffle = useRef<() => void>(() => {});
   useEffect(() => () => stopShuffle.current(), []);
   const pitchRef = useRef<HTMLDivElement>(null);
+  const [poster, setPoster] = useState<'' | 'team1' | 'team2'>('');
+  const [posterClub, setPosterClub] = useState('');
   const sectionRef = useRef<HTMLElement>(null);
   const prevPos = useRef(new Map<string, { x: number; y: number; slot: string }>());
   const lastDeal = useRef(0);
@@ -283,7 +287,7 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
       <div className={`sc-half ${zone}${overZone === zone ? ' over' : ''}`} data-zone={zone}>
         <div className="sc-tokens">
           {Array.from({ length: Math.max(0, TEAM_SIZE - team.length) }, (_, k) => (
-            <span key={`slot-${k}`} className="sc-slot" style={slotStyle(team.length + k)} aria-hidden="true"><i>{slotOf(team.length + k).pos}</i></span>
+            <span key={`slot-${k}`} className="sc-slot" style={slotStyle(team.length + k)} aria-hidden="true"><i></i></span>
           ))}
           {team.map((m, i) => chip(m, 'token', i))}
         </div>
@@ -370,6 +374,9 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
       </div>
 
       <div className="sc-split-actions">
+        <button type="button" className="sc-btn ghost" onClick={() => setPoster('team1')} disabled={!byZone.team1.length && !byZone.team2.length}>
+          <i className="bx bx-image-alt" aria-hidden="true"></i>Poster đội hình
+        </button>
         <button type="button" className="sc-btn ghost" onClick={copy}>
           <i className={`bx ${copied ? 'bx-check' : 'bx-copy'}`} aria-hidden="true"></i>{copied ? 'Đã sao chép' : 'Sao chép gửi nhóm'}
         </button>
@@ -395,6 +402,30 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
           </div>
         ) : <small className="sc-muted">Tạo trận ở tab Lịch đá để lưu đội hình.</small>)}
       </div>
+
+      {poster && (
+        <div className="sc-overlay" onMouseDown={(e) => e.target === e.currentTarget && setPoster('')}>
+          <div className="sc-dialog sc-poster-dialog" role="dialog" aria-modal="true" aria-label="Poster đội hình">
+            <button type="button" className="sc-close" onClick={() => setPoster('')} aria-label="Đóng"><i className="bx bx-x"></i></button>
+            <div className="sc-poster-tools">
+              <div className="sc-style-picker" role="radiogroup" aria-label="Đội">
+                {(['team1', 'team2'] as const).map((z) => (
+                  <button key={z} type="button" role="radio" aria-checked={poster === z} className={poster === z ? 'on' : ''} onClick={() => setPoster(z)}>{ZONE_LABEL[z]}</button>
+                ))}
+              </div>
+              <label className="sc-select"><span>Màu theo CLB</span>
+                <select value={posterClub} onChange={(e) => setPosterClub(e.target.value)}>
+                  <option value="">Màu mặc định</option>
+                  {CLUBS.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+            </div>
+            <LineupPoster title={ZONE_LABEL[poster]} vs={`${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`}
+              starters={byZone[poster]} subs={byZone[poster === 'team1' ? 'sub1' : 'sub2']} club={CLUBS.find((c) => c.id === posterClub)} />
+            <p className="sc-muted sc-poster-hint">Chụp màn hình poster để gửi nhóm.</p>
+          </div>
+        </div>
+      )}
 
       <div className="sc-ghost" ref={ghostRef} aria-hidden="true" hidden={!draggingId}>
         {draggingId && (() => {

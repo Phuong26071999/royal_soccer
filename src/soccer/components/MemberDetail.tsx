@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadAvatar } from '../api';
 import { Member, SoccerState } from '../types';
-import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto, resizeLogo, normalizeGiphyUrl } from '../utils';
+import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto, resizeLogo, normalizeGiphyUrl, ratingOf, defaultStats, STAT_KEYS, STAT_LABELS } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
-import { CLUBS, CUSTOM_CLUB, crestOf } from '../clubs';
+import { CLUBS, CUSTOM_CLUB, DEFAULT_CARD_COLOR, crestOf } from '../clubs';
+import GifSearch from './GifSearch';
+import PlayerCard from './PlayerCard';
+import CardStylePicker from './CardStylePicker';
+import { useCardStyle } from '../cardStyle';
 
 interface Props {
   member: Member;
@@ -32,9 +36,15 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
   const [club, setClub] = useState(member.club || '');
   const [clubName, setClubName] = useState(member.clubName || '');
   const [clubLogo, setClubLogo] = useState(member.clubLogo || '');
+  const [clubColor, setClubColor] = useState(member.clubColor || '');
+  const [cardStyle] = useCardStyle();
+  const [shape, setShape] = useState(member.avatarShape || 'circle');
+  // One text box per attribute; empty = estimated from the rating.
+  const [statDraft, setStatDraft] = useState<Record<string, string>>(() => Object.fromEntries(STAT_KEYS.map((k) => [k, member.stats ? String(member.stats[k]) : ''])));
   const [logoError, setLogoError] = useState('');
   const [logoBusy, setLogoBusy] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const [gifFor, setGifFor] = useState<'' | 'avatar' | 'logo'>('');
   const [logoDraft, setLogoDraft] = useState(member.clubLogo?.startsWith('https://') ? member.clubLogo : '');
   const [nameError, setNameError] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -45,10 +55,16 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
   const matchesPlayed = state.matches.filter((m) => m.teams.some((t) => t.includes(member.id))).length;
   const draftNumber = number.trim() === '' ? null : Number(number);
   const sameNumber = draftNumber !== null ? state.members.find((m) => m.id !== member.id && m.number === draftNumber) : undefined;
-  const preview = { ...member, name: name.trim() || member.name, avatar, club, clubName, clubLogo };
+  const preview = { ...member, name: name.trim() || member.name, avatar, club, clubName, clubLogo, clubColor, avatarShape: shape };
+  const auto = defaultStats(ratingOf({ tier, goals }));
+  const typedStats = STAT_KEYS.some((k) => statDraft[k].trim() !== '');
+  const draftStats = typedStats
+    ? (Object.fromEntries(STAT_KEYS.map((k) => [k, Math.max(1, Math.min(99, parseInt(statDraft[k], 10) || auto[k]))])) as unknown as NonNullable<Member['stats']>)
+    : undefined;
+  const statsChanged = JSON.stringify(draftStats || null) !== JSON.stringify(member.stats || null);
   const dirty = name.trim() !== member.name || draftNumber !== member.number || tier !== member.tier
-    || goals !== member.goals || avatar !== member.avatar || club !== (member.club || '')
-    || (club === CUSTOM_CLUB && (clubName.trim() !== (member.clubName || '') || clubLogo !== (member.clubLogo || '')));
+    || goals !== member.goals || avatar !== member.avatar || shape !== (member.avatarShape || 'circle') || statsChanged || club !== (member.club || '')
+    || (club === CUSTOM_CLUB && (clubName.trim() !== (member.clubName || '') || clubLogo !== (member.clubLogo || '') || clubColor !== (member.clubColor || '')));
 
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
@@ -143,7 +159,7 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
       if (url && url !== avatar) nextAvatar = url;
     }
     if (dirty || nextAvatar !== member.avatar) {
-      onChange({ ...member, name: trimmed, number: draftNumber, tier, goals, avatar: nextAvatar, club, clubName: club === CUSTOM_CLUB ? clubName.trim().slice(0, 40) : '', clubLogo: club === CUSTOM_CLUB ? nextLogo : '' });
+      onChange({ ...member, name: trimmed, number: draftNumber, tier, goals, avatar: nextAvatar, club, clubName: club === CUSTOM_CLUB ? clubName.trim().slice(0, 40) : '', clubLogo: club === CUSTOM_CLUB ? nextLogo : '', clubColor: club === CUSTOM_CLUB ? clubColor : '', stats: draftStats, avatarShape: shape });
     }
     onClose();
   };
@@ -210,6 +226,16 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
         {numberError && <small className="sc-error" role="alert">{numberError}</small>}
         {!numberError && sameNumber && <small className="sc-warn">Số {draftNumber} đang trùng với {sameNumber.name}.</small>}
 
+        <div className="sc-preview">
+          <PlayerCard variant={cardStyle === 'compact' ? 'ultimate' : cardStyle} member={{ ...preview, number: draftNumber, tier, goals, clubName, clubLogo, clubColor, stats: draftStats }} matches={matchesPlayed} />
+          <div className="sc-preview-info">
+            <CardStylePicker />
+            <span className="sc-label">Rating</span>
+            <b className="sc-preview-score">{ratingOf({ tier, goals })}</b>
+            <p className="sc-muted">Tier quyết định điểm nền (D 50, C 60, B 70, A 80, S 90). Cứ 2 bàn thắng cộng thêm 1 điểm, tối đa +9. Thẻ đổi ngay khi bạn sửa tên, số áo, tier, bàn thắng hay ảnh.</p>
+          </div>
+        </div>
+
         <div className="sc-tier-picker">
           <span className="sc-label">Tier (năng lực)</span>
           {isAdmin ? (
@@ -225,6 +251,21 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
             <div className="sc-tier-static"><b className={`sc-tier big t${member.tier}`}>{TIERS[member.tier].label}</b><span>{TIERS[member.tier].name}</span></div>
           )}
         </div>
+
+        {isAdmin && (
+          <div className="sc-stats-edit">
+            <span className="sc-label">Chỉ số thẻ</span>
+            <div className="sc-stat-grid">
+              {STAT_KEYS.map((k) => (
+                <label key={k}><span>{STAT_LABELS[k]}</span>
+                  <input inputMode="numeric" maxLength={2} value={statDraft[k]} placeholder={String(auto[k])}
+                    onChange={(e) => setStatDraft({ ...statDraft, [k]: e.target.value.replace(/[^0-9]/g, '') })} /></label>
+              ))}
+            </div>
+            <p className="sc-muted">Để trống thì tự ước tính từ rating. Điền một ô là các ô trống còn lại lấy theo ước tính.</p>
+            {typedStats && <button type="button" className="sc-btn ghost small" onClick={() => setStatDraft(Object.fromEntries(STAT_KEYS.map((k) => [k, ''])))}>Dùng chỉ số tự ước tính</button>}
+          </div>
+        )}
 
         <div className="sc-club-picker">
           <span className="sc-label">Đội bóng yêu thích</span>
@@ -248,6 +289,8 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
               <div className="sc-custom-club-fields">
                 <label className="sc-link-field"><span>Tên đội</span>
                   <input value={clubName} maxLength={40} placeholder="VD: Hà Nội FC" onChange={(e) => setClubName(e.target.value)} /></label>
+                <label className="sc-link-field sc-color-field"><span>Màu thẻ cầu thủ</span>
+                  <input type="color" value={clubColor || DEFAULT_CARD_COLOR} onChange={(e) => setClubColor(e.target.value)} /></label>
                 <label className="sc-link-field"><span>Link logo (https, hỗ trợ cả link Giphy)</span>
                   <input value={logoDraft} placeholder="https://..." maxLength={400}
                     onChange={(e) => { setLogoDraft(e.target.value); setLogoError(''); }}
@@ -256,8 +299,11 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
                   <button type="button" className="sc-btn small" onClick={() => logoFileRef.current?.click()} disabled={logoBusy}>
                     <i className={`bx ${logoBusy ? 'bx-loader-alt bx-spin' : 'bx-image-add'}`} aria-hidden="true"></i>{logoBusy ? 'Đang tải lên' : 'Tải logo từ máy'}
                   </button>
+                  <button type="button" className="sc-btn ghost small" onClick={() => setGifFor(gifFor === 'logo' ? '' : 'logo')}><i className="bx bx-search-alt" aria-hidden="true"></i>Tìm GIF</button>
                   {clubLogo && <button type="button" className="sc-btn ghost small" onClick={() => { setClubLogo(''); setLogoDraft(''); setLogoError(''); }}><i className="bx bx-trash" aria-hidden="true"></i>Xóa logo</button>}
                 </div>
+                {gifFor === 'logo' && <GifSearch onClose={() => setGifFor('')}
+                  onPick={(url) => { setClubLogo(url); setLogoDraft(url); setLogoError(''); setGifFor(''); }} />}
                 <input ref={logoFileRef} type="file" accept="image/*" hidden onChange={onPickLogo} />
                 {logoError && <small className="sc-error" role="alert">{logoError}</small>}
               </div>
@@ -304,13 +350,23 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickFile} />
+              <div className="sc-shape-picker" role="radiogroup" aria-label="Khung ảnh đại diện">
+                <span className="sc-label">Khung ảnh</span>
+                {([['circle', 'Tròn'], ['rounded', 'Bo góc'], ['square', 'Vuông'], ['hex', 'Lục giác']] as const).map(([id, name]) => (
+                  <button key={id} type="button" role="radio" aria-checked={shape === id} className={shape === id ? 'on' : ''} onClick={() => setShape(id)} title={name} aria-label={name}>
+                    <span className={`sc-shape-chip ${id}`}></span><small>{name}</small>
+                  </button>
+                ))}
+              </div>
               <label className="sc-link-field">
                 <span>Hoặc dán link ảnh / link GIF từ Giphy</span>
                 <input value={link} onChange={(e) => { setLink(e.target.value); setPhotoError(''); }} onBlur={applyLink} placeholder="https://..." maxLength={400} />
               </label>
-              <a className="sc-btn ghost small sc-giphy" href="https://giphy.com/search/football" target="_blank" rel="noopener noreferrer">
-                <i className="bx bx-link-external" aria-hidden="true"></i>Tìm GIF trên Giphy
-              </a>
+              <button type="button" className="sc-btn ghost small sc-giphy" onClick={() => setGifFor(gifFor === 'avatar' ? '' : 'avatar')}>
+                <i className="bx bx-search-alt" aria-hidden="true"></i>Tìm GIF
+              </button>
+              {gifFor === 'avatar' && <GifSearch onClose={() => setGifFor('')}
+                onPick={(url) => { setLink(url); setAvatar(url); setPhotoError(''); setGifFor(''); }} />}
               {photoError && <small className="sc-error" role="alert">{photoError}</small>}
             </div>
             {fundUnlocked ? (

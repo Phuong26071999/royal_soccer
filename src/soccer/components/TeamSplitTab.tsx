@@ -77,9 +77,12 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
   const [posterMsg, setPosterMsg] = useState<{ text: string; error?: boolean } | null>(null);
   const [posterBusy, setPosterBusy] = useState(false);
 
+  const nextMatch = state.matches.filter((m) => isUpcoming(m.date)).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const posterInfo = nextMatch ? `${formatMatchDate(nextMatch.date)} - ${nextMatch.location}` : 'Giao hữu';
+
   const posterBlob = () => {
     const z = poster as 'team1' | 'team2';
-    return renderPosterBlob({ title: ZONE_LABEL[z], vs: `${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`,
+    return renderPosterBlob({ title: ZONE_LABEL[z], vs: `${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`, info: posterInfo,
       starters: byZone[z], subs: byZone[z === 'team1' ? 'sub1' : 'sub2'], club: CLUBS.find((c) => c.id === posterClub) });
   };
   const downloadPoster = async () => {
@@ -460,7 +463,7 @@ const TeamSplitTab = ({ state, isAdmin, onSaveToMatch, onSaveHistory }: Props) =
                 </select>
               </label>
             </div>
-            <LineupPoster title={ZONE_LABEL[poster]} vs={`${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`}
+            <LineupPoster info={posterInfo} title={ZONE_LABEL[poster]} vs={`${ZONE_LABEL.team1} vs ${ZONE_LABEL.team2}`}
               starters={byZone[poster]} subs={byZone[poster === 'team1' ? 'sub1' : 'sub2']} club={CLUBS.find((c) => c.id === posterClub)} />
             <div className="sc-row-gap sc-poster-actions">
               <button type="button" className="sc-btn" onClick={copyPoster} disabled={posterBusy}>

@@ -1,6 +1,6 @@
 import { Club, DEFAULT_CARD_COLOR } from './clubs';
 import { Member } from './types';
-import { avatarColor, initials, shortName } from './utils';
+import { TIERS, avatarColor, initials, shortName } from './utils';
 
 interface PosterData {
   title: string;
@@ -8,6 +8,7 @@ interface PosterData {
   starters: Member[];
   subs: Member[];
   club?: Club;
+  info?: string;
 }
 
 const W = 1080;
@@ -69,7 +70,7 @@ function roundRectTop(ctx: CanvasRenderingContext2D, x: number, y: number, w: nu
 }
 
 /** Draws the "Starting V" poster (same layout as LineupPoster) and returns it as a PNG. */
-export async function renderPosterBlob({ title, vs, starters, subs, club }: PosterData): Promise<Blob> {
+export async function renderPosterBlob({ title, vs, starters, subs, club, info = 'Giao hữu' }: PosterData): Promise<Blob> {
   await Promise.all(['800', '600', '700'].map((w) => document.fonts.load(`${w} 40px "Barlow Condensed"`).catch(() => [])));
   const color = club?.color || DEFAULT_CARD_COLOR;
   const ordered = [...SHEET_ORDER.map((i) => starters[i]), ...starters.slice(SHEET_ORDER.length)].filter(Boolean) as Member[];
@@ -116,6 +117,28 @@ export async function renderPosterBlob({ title, vs, starters, subs, club }: Post
     ctx.stroke();
   }
   ctx.restore();
+
+  // wavy bands top and bottom
+  const wave = (top: boolean) => {
+    const y0 = top ? 0 : H;
+    const dir = top ? 1 : -1;
+    const bandH = 150;
+    const edge = (x: number, y: number) => [x, y0 + dir * y] as const;
+    ctx.beginPath();
+    ctx.moveTo(0, y0);
+    ctx.lineTo(W, y0);
+    ctx.lineTo(...edge(W, bandH * 0.5));
+    ctx.bezierCurveTo(...edge(W * 0.82, bandH), ...edge(W * 0.7, bandH * 0.08), ...edge(W * 0.52, bandH * 0.42));
+    ctx.bezierCurveTo(...edge(W * 0.34, bandH * 0.78), ...edge(W * 0.18, bandH * 0.86), ...edge(0, bandH * 0.42));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(255,255,255,0.11)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  };
+  wave(true);
+  wave(false);
 
   // header
   ctx.textAlign = 'center';
@@ -207,6 +230,22 @@ export async function renderPosterBlob({ title, vs, starters, subs, club }: Post
     spaced(ctx, 3);
     ctx.fillText(label, 0, 0);
     ctx.restore();
+
+    // tier badge, bottom-right
+    const bs = tileW * 0.2;
+    const bx = x + tileW - bs - tileW * 0.045;
+    const by = y + tileH - bs - tileW * 0.045;
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = ({ 5: '#ffe27a', 4: '#8fe0a8', 3: '#e9eee9', 2: '#d9a679', 1: '#aebcb4' } as Record<number, string>)[m.tier] || '#f6d77a';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, bs, bs, bs * 0.18) : ctx.rect(bx, by, bs, bs);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#1b1608';
+    ctx.textAlign = 'center';
+    ctx.font = `800 ${bs * 0.7}px ${FONT}`;
+    ctx.fillText(TIERS[m.tier].label, bx + bs / 2, by + bs * 0.74);
     ctx.restore();
   };
   ordered.forEach((m, idx) => drawTile(m, idx, gx(idx + 1), gy(idx + 1), avatars[idx]));
@@ -238,7 +277,7 @@ export async function renderPosterBlob({ title, vs, starters, subs, club }: Post
   ctx.font = `600 38px ${FONT}`;
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
   spaced(ctx, 9);
-  ctx.fillText('GIAO HỮU', W - PAD, fy + 56);
+  ctx.fillText(info.toUpperCase(), W - PAD, fy + 56);
   spaced(ctx, 0);
 
   return new Promise((resolve, reject) => {

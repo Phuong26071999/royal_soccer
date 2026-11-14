@@ -943,3 +943,13 @@ $shield: polygon(0 5%, 8% 3.5%, 20% 1%, 33% 0, 40% 2%, 50% .5%, 60% 2%, 67% 0, 8
 
 /* poster tile: portrait sits right of the name, leaving the giant number visible above and beside it */
 .sc-xi-photo { left: 24%; right: 2%; .sc-avatar { width: 100% !important; } }
+
+/* poster polish: wavy bands (as on the Portugal sheet), tier badge on every tile, fixture line */
+.sc-xi-in { position: relative; overflow: hidden; }
+.sc-xi-in > *:not(.sc-xi-wave) { position: relative; z-index: 1; }
+.sc-xi-wave { position: absolute; left: 0; width: 100%; height: 14cqw; z-index: 0; pointer-events: none;
+    path { fill: rgba(255, 255, 255, .11); stroke: rgba(255, 255, 255, .4); stroke-width: .35; vector-effect: non-scaling-stroke; }
+    &.top { top: 0; } &.bottom { bottom: 0; } }
+.sc-xi-tier { position: absolute; right: 2.2cqw; bottom: 2.2cqw; z-index: 3; width: 7.6cqw; height: 7.6cqw; display: grid; place-items: center; font-style: normal; font-family: $display; font-weight: 800; font-size: 5.2cqw; line-height: 1; border-radius: 1.4cqw; background: #f6d77a; color: #1b1608; box-shadow: 0 .6cqw 1.6cqw rgba(0, 0, 0, .4);
+    &.t5 { background: #ffe27a; } &.t4 { background: #8fe0a8; } &.t3 { background: #e9eee9; } &.t2 { background: #d9a679; } &.t1 { background: #aebcb4; } }
+.sc-xi-foot span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

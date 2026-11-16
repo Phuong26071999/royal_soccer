@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Member, SoccerState } from '../types';
-import { TIERS, monthKey, ratingOf, slugify, uniqueId } from '../utils';
+import { TIERS, currentFund, monthKey, participantsOf, ratingOf, slugify, uniqueId } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
 import PlayerCard from './PlayerCard';
 import CardStylePicker from './CardStylePicker';
@@ -21,7 +21,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
   const [sort, setSort] = useState<SortKey>('number');
   const [newName, setNewName] = useState('');
   const [cardStyle] = useCardStyle();
-  const paidNow = new Set(state.fund.payments[monthKey()] || []);
+  const paidNow = new Set((currentFund(state)?.payments[monthKey()]) || []);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -94,7 +94,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
       <div className={`sc-members ${cardStyle}`}>
         {list.map((m) => {
           const paid = paidNow.has(m.id);
-          const matches = state.matches.filter((x) => x.teams.some((t) => t.includes(m.id))).length;
+          const matches = state.matches.filter((x) => participantsOf(x).includes(m.id)).length;
           const label = `${m.name}${m.number !== null ? `, số áo ${m.number}` : ''}, tier ${TIERS[m.tier].label}, ${m.goals} bàn, ${paid ? 'đã đóng quỹ' : 'chưa đóng quỹ'}`;
           if (cardStyle !== 'compact') {
             return (

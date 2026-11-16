@@ -1,4 +1,4 @@
-import { Member, PlayerStats } from './types';
+import { Fund, Match, Member, PlayerStats, SoccerState } from './types';
 
 export const TIERS: Record<number, { label: string; name: string }> = {
   5: { label: 'S', name: 'Xuất sắc' },
@@ -191,4 +191,50 @@ export const statsOf = (m: { tier: number; goals: number; stats?: PlayerStats })
 export function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);
   return parts.length > 2 ? `${parts[parts.length - 1]} ${parts[0]}` : name.trim();
+}
+
+/** Ids of everyone who played a match: the explicit attendee list, else everyone placed in a team. */
+export function participantsOf(match: Match): string[] {
+  if (match.attendees) return match.attendees;
+  return Array.from(new Set(match.teams.flat()));
+}
+
+export const matchCostTotal = (match: Match) => (match.costs || []).reduce((sum, c) => sum + c.amount, 0);
+
+/** What each attendee pays for a match: total cost split evenly (rounded to the nearest đồng). */
+export function matchShare(match: Match): number {
+  const n = participantsOf(match).length;
+  return n ? Math.round(matchCostTotal(match) / n) : 0;
+}
+
+export interface LedgerEntry { match: Match; share: number }
+
+/** The fund everyday payments go to: the open fund that started most recently. */
+export function currentFund(state: SoccerState): Fund | undefined {
+  return state.funds.filter((f) => f.status === 'open').sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
+}
+
+/** Collected, spent and what is left of one fund. */
+export function fundTotals(fund: Fund) {
+  const paidCount = Object.values(fund.payments).reduce((sum, ids) => sum + ids.length, 0);
+  const totalIn = paidCount * fund.fee;
+  const totalOut = fund.expenses.reduce((sum, e) => sum + e.amount, 0);
+  return { paidCount, totalIn, totalOut, balance: totalIn - totalOut };
+}
+
+export interface PaidMonth { fund: Fund; month: string }
+
+/** A member's fund account: money paid in (all funds), split cost of the matches they played, and what is left. */
+export function memberLedger(state: SoccerState, memberId: string) {
+  const paidMonths: PaidMonth[] = state.funds.flatMap((fund) => Object.keys(fund.payments)
+    .filter((month) => fund.payments[month].includes(memberId))
+    .map((month) => ({ fund, month })))
+    .sort((a, b) => b.month.localeCompare(a.month));
+  const contributed = paidMonths.reduce((sum, p) => sum + p.fund.fee, 0);
+  const history: LedgerEntry[] = state.matches
+    .filter((m) => participantsOf(m).includes(memberId))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((match) => ({ match, share: matchShare(match) }));
+  const spent = history.reduce((sum, e) => sum + e.share, 0);
+  return { paidMonths, contributed, history, spent, balance: contributed - spent };
 }

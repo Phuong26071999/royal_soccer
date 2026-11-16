@@ -47,12 +47,13 @@ function sendError(res, status, code, extra = {}, headers) {
 const sha = (value) => crypto.createHash('sha256').update(String(value)).digest();
 const adminPin = () => (process.env.SOCCER_ADMIN_PIN || '').trim();
 
-/** Order-independent snapshot of the fund, used to detect fund changes. */
-function fundKey(fund) {
-  const payments = Object.keys(fund.payments || {}).sort()
-    .map((month) => [month, [...fund.payments[month]].sort()])
-    .filter(([, ids]) => ids.length);
-  return JSON.stringify([fund.fee, payments, fund.expenses || []]);
+/** Order-independent snapshot of every fund (creating, closing, deleting, payments, expenses), used to detect fund changes. */
+function fundKey(funds) {
+  return JSON.stringify([...(funds || [])].sort((x, y) => String(x.id).localeCompare(String(y.id))).map((f) => [
+    f.id, f.name, f.startDate, f.status, f.closedAt || '', f.fee,
+    Object.keys(f.payments || {}).sort().map((month) => [month, [...f.payments[month]].sort()]).filter(([, ids]) => ids.length),
+    f.expenses || [],
+  ]));
 }
 
 /** Throws unless the request carries the admin PIN; failures are rate limited. */
@@ -103,7 +104,7 @@ async function handler(req, res) {
     if (body.version !== current.version) {
       return sendError(res, 409, 'conflict', { state: current });
     }
-    if (fundKey(clean.fund) !== fundKey(current.fund)) {
+    if (fundKey(clean.funds) !== fundKey(current.funds)) {
       await requireAdmin(req);
     } else {
       const writes = await hitLimit('soccer-write', getClientIp(req), WRITE_LIMIT);

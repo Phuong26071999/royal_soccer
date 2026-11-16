@@ -19,10 +19,6 @@
     { "id": "thanh", "name": "Thành", "number": null, "tier": 3, "goals": 0, "avatar": "" },
     { "id": "thanh-phong", "name": "Thanh Phong", "number": null, "tier": 3, "goals": 0, "avatar": "" }
   ],
-  "fund": {
-    "fee": 100000,
-    "payments": {},
-    "expenses": []
-  },
+  "funds": [],
   "matches": []
 }

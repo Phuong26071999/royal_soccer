@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { uploadAvatar } from '../api';
 import { Member, SoccerState } from '../types';
-import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto, resizeLogo, normalizeGiphyUrl, ratingOf, defaultStats, STAT_KEYS, STAT_LABELS } from '../utils';
+import { TIERS, formatMoney, monthKey, monthLabel, resizePhoto, resizeLogo, normalizeGiphyUrl, ratingOf, defaultStats, STAT_KEYS, STAT_LABELS, memberLedger, currentFund } from '../utils';
 import Avatar, { ClubBackdrop } from './Avatar';
 import { CLUBS, CUSTOM_CLUB, DEFAULT_CARD_COLOR, crestOf } from '../clubs';
 import GifSearch from './GifSearch';
 import PlayerCard from './PlayerCard';
-import CardStylePicker from './CardStylePicker';
 import { useCardStyle } from '../cardStyle';
 
 interface Props {
@@ -50,9 +49,11 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
   const [photoError, setPhotoError] = useState('');
   const [uploading, setUploading] = useState(false);
   const thisMonth = monthKey();
-  const paidThisMonth = (state.fund.payments[thisMonth] || []).includes(member.id);
-  const paidMonths = Object.keys(state.fund.payments).filter((m) => state.fund.payments[m].includes(member.id)).sort().reverse();
-  const matchesPlayed = state.matches.filter((m) => m.teams.some((t) => t.includes(member.id))).length;
+  const activeFund = currentFund(state);
+  const paidThisMonth = Boolean(activeFund && (activeFund.payments[thisMonth] || []).includes(member.id));
+  const ledger = memberLedger(state, member.id);
+  const paidMonths = ledger.paidMonths;
+  const matchesPlayed = ledger.history.length;
   const draftNumber = number.trim() === '' ? null : Number(number);
   const sameNumber = draftNumber !== null ? state.members.find((m) => m.id !== member.id && m.number === draftNumber) : undefined;
   const preview = { ...member, name: name.trim() || member.name, avatar, club, clubName, clubLogo, clubColor, avatarShape: shape };
@@ -229,7 +230,6 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
         <div className="sc-preview">
           <PlayerCard variant={cardStyle === 'compact' ? 'ultimate' : cardStyle} member={{ ...preview, number: draftNumber, tier, goals, clubName, clubLogo, clubColor, stats: draftStats }} matches={matchesPlayed} />
           <div className="sc-preview-info">
-            <CardStylePicker />
             <span className="sc-label">Rating</span>
             <b className="sc-preview-score">{ratingOf({ tier, goals })}</b>
             <p className="sc-muted">Tier quyết định điểm nền (D 50, C 60, B 70, A 80, S 90). Cứ 2 bàn thắng cộng thêm 1 điểm, tối đa +9. Thẻ đổi ngay khi bạn sửa tên, số áo, tier, bàn thắng hay ảnh.</p>
@@ -324,11 +324,11 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
           </div>
           <div className="sc-stat">
             <small>Quỹ {monthLabel(thisMonth).toLowerCase()}</small>
-            <b className={paidThisMonth ? 'ok' : 'warn'}>{paidThisMonth ? 'Đã đóng' : 'Chưa đóng'}</b>
-            <span>{formatMoney(state.fund.fee)}</span>
+            <b className={!activeFund ? '' : paidThisMonth ? 'ok' : 'warn'}>{!activeFund ? '--' : paidThisMonth ? 'Đã đóng' : 'Chưa đóng'}</b>
+            <span>{activeFund ? `${formatMoney(activeFund.fee)} · ${activeFund.name}` : 'Chưa có quỹ đang mở'}</span>
           </div>
           <div className="sc-stat">
-            <small>Số trận đã xếp đội</small>
+            <small>Số trận đã đá</small>
             <b>{matchesPlayed}</b>
           </div>
         </div>
@@ -369,7 +369,9 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
                 onPick={(url) => { setLink(url); setAvatar(url); setPhotoError(''); setGifFor(''); }} />}
               {photoError && <small className="sc-error" role="alert">{photoError}</small>}
             </div>
-            {fundUnlocked ? (
+            {!activeFund ? (
+              <p className="sc-muted sc-span-2"><i className="bx bx-wallet" aria-hidden="true"></i> Chưa có quỹ nào đang mở. Tạo quỹ ở tab Quỹ để ghi nhận đóng quỹ.</p>
+            ) : fundUnlocked ? (
               <button type="button" className={`sc-btn ${paidThisMonth ? 'ghost' : ''} sc-span-2`} onClick={() => onTogglePaid(member.id, thisMonth)}>
                 <i className={`bx ${paidThisMonth ? 'bx-undo' : 'bx-check'}`} aria-hidden="true"></i>
                 {paidThisMonth ? 'Đánh dấu chưa đóng' : 'Đánh dấu đã đóng quỹ'}
@@ -380,10 +382,49 @@ const MemberDetail = ({ member, state, isAdmin, fundUnlocked, onChange, onToggle
           </div>
         )}
 
+        <div className="sc-ledger">
+          <h3>Quỹ &amp; lịch sử đá</h3>
+          <div className="sc-ledger-sum">
+            <div>
+              <small>Đã đóng quỹ</small>
+              <b>{formatMoney(ledger.contributed)}</b>
+              <span>{ledger.paidMonths.length} lượt đóng</span>
+            </div>
+            <div>
+              <small>Chi phí các buổi đá</small>
+              <b className="spent">{ledger.spent ? '-' : ''}{formatMoney(ledger.spent)}</b>
+              <span>{ledger.history.length} buổi</span>
+            </div>
+            <div className={ledger.balance < 0 ? 'neg' : 'pos'}>
+              <small>{ledger.balance < 0 ? 'Còn nợ' : 'Còn lại'}</small>
+              <b>{formatMoney(Math.abs(ledger.balance))}</b>
+              <span>{ledger.balance < 0 ? 'cần đóng thêm' : 'trong quỹ'}</span>
+            </div>
+          </div>
+          {ledger.history.length ? (
+            <ol className="sc-ledger-list">
+              {ledger.history.map(({ match, share }) => {
+                const d = new Date(match.date);
+                const when = Number.isNaN(d.getTime()) ? match.date
+                  : `${d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })} · ${d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
+                return (
+                  <li key={match.id}>
+                    <i className="bx bx-football" aria-hidden="true"></i>
+                    <span className="sc-grow"><b>{when}</b><small>{match.location}</small></span>
+                    <span className={share ? 'cost' : 'sc-muted'}>{share ? `-${formatMoney(share)}` : 'Chưa tính phí'}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <p className="sc-muted">Chưa tham gia buổi đá nào. Điểm danh ở tab Lịch đá để lưu lịch sử.</p>
+          )}
+        </div>
+
         <div className="sc-history">
           <h3>Lịch sử đóng quỹ</h3>
           {paidMonths.length ? (
-            <div className="sc-chips">{paidMonths.map((m) => <span key={m} className="sc-chip ok">{monthLabel(m)}</span>)}</div>
+            <div className="sc-chips">{paidMonths.map((p) => <span key={`${p.fund.id}-${p.month}`} className="sc-chip ok" title={p.fund.name}>{monthLabel(p.month)} · {p.fund.name}</span>)}</div>
           ) : (
             <p className="sc-muted">Chưa có tháng nào được ghi nhận.</p>
           )}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { SoccerApiError, fetchState, saveState, verifyPin } from './api';
-import { Member, SoccerState } from './types';
-import { monthKey, randomId } from './utils';
+import { Fund, Member, SoccerState } from './types';
+import { currentFund, monthKey, randomId } from './utils';
 import MembersTab from './components/MembersTab';
 import MemberDetail from './components/MemberDetail';
 import TeamSplitTab from './components/TeamSplitTab';
@@ -118,26 +118,64 @@ const SoccerPage = () => {
   const updateMember = (member: Member) =>
     update((s) => ({ ...s, members: s.members.map((m) => (m.id === member.id ? member : m)) }));
 
-  const togglePaid = (memberId: string, month: string) => updateFund((s) => {
-    const ids = s.fund.payments[month] || [];
+  /** Applies a change to one fund (needs the PIN, like every fund change). */
+  const updateOneFund = (fundId: string, change: (fund: Fund) => Fund) =>
+    updateFund((s) => ({ ...s, funds: s.funds.map((f) => (f.id === fundId && f.status === 'open' ? change(f) : f)) }));
+
+  const togglePaid = (fundId: string, memberId: string, month: string) => updateOneFund(fundId, (f) => {
+    const ids = f.payments[month] || [];
     const nextIds = ids.includes(memberId) ? ids.filter((id) => id !== memberId) : [...ids, memberId];
-    const payments = { ...s.fund.payments, [month]: nextIds };
+    const payments = { ...f.payments, [month]: nextIds };
     if (!nextIds.length) delete payments[month];
-    return { ...s, fund: { ...s.fund, payments } };
+    return { ...f, payments };
   });
+
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const createFund = (name: string, startDate: string): string => {
+    const id = randomId();
+    updateFund((s) => {
+      const fee = [...s.funds].sort((x, y) => y.startDate.localeCompare(x.startDate))[0]?.fee ?? 100000;
+      return { ...s, funds: [...s.funds, { id, name, startDate, status: 'open', fee, payments: {}, expenses: [] }] };
+    });
+    notify('Đã tạo quỹ.');
+    return id;
+  };
+  const closeFund = (fundId: string) => {
+    updateFund((s) => ({ ...s, funds: s.funds.map((f) => (f.id === fundId ? { ...f, status: 'closed', closedAt: today() < f.startDate ? f.startDate : today() } : f)) }));
+    notify('Đã đóng quỹ, xem lại trong Lịch sử quỹ.');
+  };
+  const reopenFund = (fundId: string) => {
+    updateFund((s) => ({ ...s, funds: s.funds.map((f) => {
+      if (f.id !== fundId) return f;
+      const { closedAt, ...rest } = f;
+      return { ...rest, status: 'open' as const };
+    }) }));
+    notify('Đã mở lại quỹ.');
+  };
+  const deleteFund = (fundId: string) => {
+    updateFund((s) => ({ ...s, funds: s.funds.filter((f) => f.id !== fundId) }));
+    notify('Đã xóa quỹ.');
+  };
 
   const removeMember = (memberId: string) => {
     setOpenId(null);
     update((s) => ({
       ...s,
       members: s.members.filter((m) => m.id !== memberId),
-      fund: {
-        ...s.fund,
-        payments: Object.fromEntries(Object.entries(s.fund.payments)
+      funds: s.funds.map((f) => ({
+        ...f,
+        payments: Object.fromEntries(Object.entries(f.payments)
           .map(([k, ids]) => [k, ids.filter((id) => id !== memberId)] as [string, string[]])
           .filter(([, ids]) => ids.length)),
-      },
-      matches: s.matches.map((m) => ({ ...m, teams: m.teams.map((t) => t.filter((id) => id !== memberId)) })),
+      })),
+      matches: s.matches.map((m) => ({
+        ...m,
+        teams: m.teams.map((t) => t.filter((id) => id !== memberId)),
+        ...(m.attendees ? { attendees: m.attendees.filter((id) => id !== memberId) } : {}),
+      })),
     }));
   };
 
@@ -164,7 +202,8 @@ const SoccerPage = () => {
   }
 
   const openMember = data.members.find((m) => m.id === openId) || null;
-  const paidNow = (data.fund.payments[monthKey()] || []).length;
+  const activeFund = currentFund(data);
+  const paidNow = ((activeFund && activeFund.payments[monthKey()]) || []).length;
   const nextMatch = data.matches.filter((m) => new Date(m.date).getTime() >= Date.now()).sort((a, b) => a.date.localeCompare(b.date))[0];
 
   return (
@@ -214,12 +253,14 @@ const SoccerPage = () => {
             }} />
         )}
         {tab === 'fund' && (
-          <FundTab state={data} isAdmin={fundUnlocked} onTogglePaid={togglePaid}
+          <FundTab state={data} isAdmin={fundUnlocked}
             lockState={!writable || !fundPin ? 'disabled' : fundUnlocked ? 'unlocked' : 'locked'}
             onUnlock={() => setPinOpen(true)} onLock={lock}
-            onSetFee={(fee) => { updateFund((s) => ({ ...s, fund: { ...s.fund, fee } })); notify('Đã cập nhật tiền quỹ.'); }}
-            onAddExpense={(e) => updateFund((s) => ({ ...s, fund: { ...s.fund, expenses: [...s.fund.expenses, e] } }))}
-            onRemoveExpense={(id) => updateFund((s) => ({ ...s, fund: { ...s.fund, expenses: s.fund.expenses.filter((e) => e.id !== id) } }))} />
+            onTogglePaid={togglePaid}
+            onSetFee={(fundId, fee) => { updateOneFund(fundId, (f) => ({ ...f, fee })); notify('Đã cập nhật tiền quỹ.'); }}
+            onAddExpense={(fundId, e) => updateOneFund(fundId, (f) => ({ ...f, expenses: [...f.expenses, e] }))}
+            onRemoveExpense={(fundId, id) => updateOneFund(fundId, (f) => ({ ...f, expenses: f.expenses.filter((e) => e.id !== id) }))}
+            onCreateFund={createFund} onCloseFund={closeFund} onReopenFund={reopenFund} onDeleteFund={deleteFund} />
         )}
         {tab === 'schedule' && (
           <ScheduleTab state={data} isAdmin={canEdit}
@@ -231,7 +272,7 @@ const SoccerPage = () => {
 
       {openMember && (
         <MemberDetail key={openMember.id} member={openMember} state={data} isAdmin={canEdit} fundUnlocked={fundUnlocked} onChange={updateMember}
-          onTogglePaid={togglePaid} onRemove={removeMember} onClose={() => setOpenId(null)} />
+          onTogglePaid={(memberId, month) => activeFund && togglePaid(activeFund.id, memberId, month)} onRemove={removeMember} onClose={() => setOpenId(null)} />
       )}
 
       {pinOpen && (

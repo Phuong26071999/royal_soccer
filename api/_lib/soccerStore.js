@@ -17,7 +17,7 @@ const seed = require('../../src/soccer/seed.json');
 const KEY = 'soccer:state';
 const LOCAL_FILE = path.join(__dirname, '..', '..', '.data', 'soccer.json');
 
-const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4 };
+const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4, costs: 20, funds: 30 };
 
 class ValidationError extends Error {}
 
@@ -34,6 +34,23 @@ function str(v, max, field, { optional = false } = {}) {
   if (!s && !optional) fail(`${field} is required`);
   if (s.length > max) fail(`${field} is too long`);
   return s;
+}
+
+function matchAttendees(v, i, knownId) {
+  if (!Array.isArray(v) || v.length > LIMITS.members) fail(`matches[${i}].attendees is invalid`);
+  return [...new Set(v.map((x, k) => knownId(x, `matches[${i}].attendees[${k}]`)))];
+}
+
+function matchCosts(v, i) {
+  if (!Array.isArray(v) || v.length > LIMITS.costs) fail(`matches[${i}].costs is invalid`);
+  return v.map((c, k) => {
+    if (!isObj(c)) fail(`matches[${i}].costs[${k}] is invalid`);
+    return {
+      id: id(c.id, `matches[${i}].costs[${k}].id`),
+      note: str(c.note, 60, `matches[${i}].costs[${k}].note`, { optional: true }),
+      amount: int(c.amount, 0, 1000000000, `matches[${i}].costs[${k}].amount`),
+    };
+  });
 }
 
 function int(v, min, max, field) {
@@ -74,10 +91,71 @@ function shirtNumber(v, field) {
   return int(v, 0, 99, field);
 }
 
+const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** Older saves had one `fund`; it becomes the first fund ("Quỹ chung") of the funds list. */
+function migrateFunds(state) {
+  if (!state || Array.isArray(state.funds) || !isObj(state.fund)) return state;
+  const { fund, ...rest } = state;
+  const months = Object.keys(isObj(fund.payments) ? fund.payments : {}).sort();
+  return {
+    ...rest,
+    funds: [{
+      id: 'quy-chung',
+      name: 'Quỹ chung',
+      startDate: months.length ? `${months[0]}-01` : localDate(),
+      status: 'open',
+      ...fund,
+    }],
+  };
+}
+
+function parseFund(f, i, knownId) {
+  const at = `funds[${i}]`;
+  if (!isObj(f)) fail(`${at} is invalid`);
+  if (!isObj(f.payments) || Object.keys(f.payments).length > LIMITS.months) fail(`${at}.payments is invalid`);
+  const payments = {};
+  Object.entries(f.payments).forEach(([month, ids]) => {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail(`${at}.payments month "${month}" is invalid`);
+    if (!Array.isArray(ids)) fail(`${at}.payments.${month} must be an array`);
+    payments[month] = [...new Set(ids.map((v, k) => knownId(v, `${at}.payments.${month}[${k}]`)))];
+  });
+  if (!Array.isArray(f.expenses) || f.expenses.length > LIMITS.expenses) fail(`${at}.expenses is invalid`);
+  const expenses = f.expenses.map((e, k) => {
+    if (!isObj(e)) fail(`${at}.expenses[${k}] is invalid`);
+    const date = str(e.date, 10, `${at}.expenses[${k}].date`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(`${at}.expenses[${k}].date is invalid`);
+    return {
+      id: id(e.id, `${at}.expenses[${k}].id`),
+      date,
+      note: str(e.note, 120, `${at}.expenses[${k}].note`),
+      amount: int(e.amount, 0, 1000000000, `${at}.expenses[${k}].amount`),
+    };
+  });
+  const startDate = str(f.startDate, 10, `${at}.startDate`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) fail(`${at}.startDate is invalid`);
+  const status = f.status === 'closed' ? 'closed' : 'open';
+  let closedAt = '';
+  if (status === 'closed') {
+    closedAt = str(f.closedAt, 10, `${at}.closedAt`, { optional: true }) || startDate;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(closedAt)) fail(`${at}.closedAt is invalid`);
+  }
+  return {
+    id: id(f.id, `${at}.id`),
+    name: str(f.name, 60, `${at}.name`),
+    startDate,
+    status,
+    ...(closedAt ? { closedAt } : {}),
+    fee: int(f.fee, 0, 100000000, `${at}.fee`),
+    payments,
+    expenses,
+  };
+}
+
 /** Returns a clean copy of the client's state or throws ValidationError. */
 function validateState(input) {
   if (!isObj(input)) fail('state must be an object');
-  const { members, fund, matches } = input;
+  const { members, funds, matches } = migrateFunds(input);
 
   if (!Array.isArray(members) || members.length > LIMITS.members) fail('members must be an array');
   const memberIds = new Set();
@@ -108,26 +186,9 @@ function validateState(input) {
     return s;
   };
 
-  if (!isObj(fund)) fail('fund must be an object');
-  if (!isObj(fund.payments) || Object.keys(fund.payments).length > LIMITS.months) fail('fund.payments is invalid');
-  const payments = {};
-  Object.entries(fund.payments).forEach(([month, ids]) => {
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail(`fund.payments month "${month}" is invalid`);
-    if (!Array.isArray(ids)) fail(`fund.payments.${month} must be an array`);
-    payments[month] = [...new Set(ids.map((v, i) => knownId(v, `fund.payments.${month}[${i}]`)))];
-  });
-  if (!Array.isArray(fund.expenses) || fund.expenses.length > LIMITS.expenses) fail('fund.expenses is invalid');
-  const expenses = fund.expenses.map((e, i) => {
-    if (!isObj(e)) fail(`fund.expenses[${i}] is invalid`);
-    const date = str(e.date, 10, `fund.expenses[${i}].date`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(`fund.expenses[${i}].date is invalid`);
-    return {
-      id: id(e.id, `fund.expenses[${i}].id`),
-      date,
-      note: str(e.note, 120, `fund.expenses[${i}].note`),
-      amount: int(e.amount, 0, 1000000000, `fund.expenses[${i}].amount`),
-    };
-  });
+  if (!Array.isArray(funds) || funds.length > LIMITS.funds) fail('funds must be an array');
+  const cleanFunds = funds.map((f, i) => parseFund(f, i, knownId));
+  if (new Set(cleanFunds.map((f) => f.id)).size !== cleanFunds.length) fail('funds have duplicate ids');
 
   if (!Array.isArray(matches) || matches.length > LIMITS.matches) fail('matches must be an array');
   const cleanMatches = matches.map((m, i) => {
@@ -145,12 +206,14 @@ function validateState(input) {
         if (!Array.isArray(team) || team.length > LIMITS.members) fail(`matches[${i}].teams[${t}] is invalid`);
         return team.map((v, k) => knownId(v, `matches[${i}].teams[${t}][${k}]`));
       }),
+      ...(m.attendees === undefined ? {} : { attendees: matchAttendees(m.attendees, i, knownId) }),
+      ...(m.costs === undefined ? {} : { costs: matchCosts(m.costs, i) }),
     };
   });
 
   return {
     members: cleanMembers,
-    fund: { fee: int(fund.fee, 0, 100000000, 'fund.fee'), payments, expenses },
+    funds: cleanFunds,
     matches: cleanMatches,
   };
 }
@@ -181,9 +244,10 @@ async function loadState(env = process.env) {
   let raw = null;
   if (backend && backend.type === 'redis') raw = await redisCommand(backend.redis, ['GET', KEY]);
   if (backend && backend.type === 'file' && fs.existsSync(LOCAL_FILE)) raw = fs.readFileSync(LOCAL_FILE, 'utf8');
-  const state = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(seed));
+  const state = migrateFunds(raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(seed)));
   // Older saves: drop the removed "role" field and default the shirt number.
   state.members = (state.members || []).map(({ role, ...m }) => ({ ...m, number: m.number ?? null }));
+  if (!Array.isArray(state.funds)) state.funds = [];
   return state;
 }
 

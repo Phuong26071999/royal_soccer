@@ -85,7 +85,7 @@ export async function uploadAvatar(memberId: string, photo: string): Promise<str
 
 /** The PIN is only checked by the server when the fund changed. */
 export async function saveState(state: SoccerState, version: number, pin: string): Promise<SoccerState> {
-  const { members, fund, matches } = state;
-  const data = await request<{ state: SoccerState }>('PUT', { version, state: { members, fund, matches } }, pin);
+  const { members, funds, matches } = state;
+  const data = await request<{ state: SoccerState }>('PUT', { version, state: { members, funds, matches } }, pin);
   return data.state;
 }

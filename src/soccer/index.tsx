@@ -22,23 +22,14 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'fund', label: 'Quỹ', icon: 'bx-wallet' },
   { key: 'schedule', label: 'Lịch đá', icon: 'bx-calendar' },
 ];
-const PIN_KEY = 'soccer-admin-pin';
-
-const readPin = () => {
-  try { return window.sessionStorage.getItem(PIN_KEY) || ''; } catch { return ''; }
-};
-const writePin = (pin: string) => {
-  try {
-    if (pin) window.sessionStorage.setItem(PIN_KEY, pin); else window.sessionStorage.removeItem(PIN_KEY);
-  } catch { /* the PIN just won't survive a reload */ }
-};
+// The PIN lives in memory only: a reload (or closing the tab) locks the fund again.
 
 const SoccerPage = () => {
   const [data, setData] = useState<SoccerState | null>(null);
   const [loadError, setLoadError] = useState('');
   const [writable, setWritable] = useState(false);
   const [fundPin, setFundPin] = useState(false);
-  const [pin, setPin] = useState(readPin);
+  const [pin, setPin] = useState('');
   const [tab, setTab] = useState<Tab>('members');
   const [openId, setOpenId] = useState<string | null>(null);
   const [pinOpen, setPinOpen] = useState(false);
@@ -99,7 +90,7 @@ const SoccerPage = () => {
         notify(err.message, 'error');
       } else {
         if (err instanceof SoccerApiError && ['wrong_pin', 'pin_locked', 'fund_locked'].includes(err.code)) {
-          setPin(''); writePin('');
+          setPin('');
         }
         notify(err instanceof Error ? `${err.message} Đang tải lại dữ liệu.` : 'Lưu thất bại.', 'error');
         load();
@@ -150,7 +141,7 @@ const SoccerPage = () => {
     }));
   };
 
-  const lock = () => { setPin(''); writePin(''); notify('Đã khóa quỹ.'); };
+  const lock = () => { setPin(''); notify('Đã khóa quỹ.'); };
 
   if (!data) {
     return (
@@ -245,7 +236,7 @@ const SoccerPage = () => {
 
       {pinOpen && (
         <PinDialog onClose={() => setPinOpen(false)} onSuccess={(value) => {
-          setPin(value); writePin(value); setPinOpen(false); notify('Đã mở khóa quỹ.');
+          setPin(value); setPinOpen(false); notify('Đã mở khóa quỹ.');
         }} />
       )}
 

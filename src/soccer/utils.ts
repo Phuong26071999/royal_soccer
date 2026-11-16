@@ -238,3 +238,34 @@ export function memberLedger(state: SoccerState, memberId: string) {
   const spent = history.reduce((sum, e) => sum + e.share, 0);
   return { paidMonths, contributed, history, spent, balance: contributed - spent };
 }
+
+/** Shrinks a photo to fit within maxSide px (keeps the aspect ratio, no crop) and returns a JPEG data URL. */
+export function resizeImage(file: File, maxSide = 720, quality = 0.8): Promise<string> {
+  if (file.type === 'image/gif') return resizePhoto(file);
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Hãy chọn một file ảnh.'));
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = canvas.getContext('2d');
+      URL.revokeObjectURL(url);
+      if (!ctx) { reject(new Error('Trình duyệt không xử lý được ảnh này.')); return; }
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Không đọc được ảnh này. Thử ảnh JPG hoặc PNG khác.'));
+    };
+    img.src = url;
+  });
+}

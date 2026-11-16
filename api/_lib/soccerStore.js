@@ -17,7 +17,7 @@ const seed = require('../../src/soccer/seed.json');
 const KEY = 'soccer:state';
 const LOCAL_FILE = path.join(__dirname, '..', '..', '.data', 'soccer.json');
 
-const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4, costs: 20, funds: 30 };
+const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4, costs: 20, funds: 30, venues: 30, venueImages: 4 };
 
 class ValidationError extends Error {}
 
@@ -33,6 +33,27 @@ function str(v, max, field, { optional = false } = {}) {
   const s = v.replace(/[\u0000-\u001f]/g, '').trim();
   if (!s && !optional) fail(`${field} is required`);
   if (s.length > max) fail(`${field} is too long`);
+  return s;
+}
+
+function parseVenue(v, i) {
+  const at = `venues[${i}]`;
+  if (!isObj(v)) fail(`${at} is invalid`);
+  const images = v.images === undefined ? [] : v.images;
+  if (!Array.isArray(images) || images.length > LIMITS.venueImages) fail(`${at}.images is invalid`);
+  const clean = images.map((x, k) => avatarUrl(x, `${at}.images[${k}]`)).filter(Boolean);
+  return {
+    id: id(v.id, `${at}.id`),
+    name: str(v.name, 120, `${at}.name`),
+    address: str(v.address, 200, `${at}.address`, { optional: true }),
+    mapUrl: v.mapUrl ? httpsUrl(v.mapUrl, `${at}.mapUrl`) : '',
+    ...(clean.length ? { images: clean } : {}),
+  };
+}
+
+function httpsUrl(v, field) {
+  const s = str(v, 800, field);
+  if (!/^https:\/\//i.test(s)) fail(`${field} must be an https URL`);
   return s;
 }
 
@@ -155,7 +176,7 @@ function parseFund(f, i, knownId) {
 /** Returns a clean copy of the client's state or throws ValidationError. */
 function validateState(input) {
   if (!isObj(input)) fail('state must be an object');
-  const { members, funds, matches } = migrateFunds(input);
+  const { members, funds, matches, venues = [] } = migrateFunds(input);
 
   if (!Array.isArray(members) || members.length > LIMITS.members) fail('members must be an array');
   const memberIds = new Set();
@@ -190,6 +211,10 @@ function validateState(input) {
   const cleanFunds = funds.map((f, i) => parseFund(f, i, knownId));
   if (new Set(cleanFunds.map((f) => f.id)).size !== cleanFunds.length) fail('funds have duplicate ids');
 
+  if (!Array.isArray(venues) || venues.length > LIMITS.venues) fail('venues must be an array');
+  const cleanVenues = venues.map((v, i) => parseVenue(v, i));
+  if (new Set(cleanVenues.map((v) => v.id)).size !== cleanVenues.length) fail('venues have duplicate ids');
+
   if (!Array.isArray(matches) || matches.length > LIMITS.matches) fail('matches must be an array');
   const cleanMatches = matches.map((m, i) => {
     if (!isObj(m)) fail(`matches[${i}] is invalid`);
@@ -200,6 +225,9 @@ function validateState(input) {
       id: id(m.id, `matches[${i}].id`),
       date,
       location: str(m.location, 120, `matches[${i}].location`),
+      ...(m.address ? { address: str(m.address, 200, `matches[${i}].address`, { optional: true }) } : {}),
+      ...(m.mapUrl ? { mapUrl: httpsUrl(m.mapUrl, `matches[${i}].mapUrl`) } : {}),
+      ...(m.venueId ? { venueId: id(m.venueId, `matches[${i}].venueId`) } : {}),
       note: str(m.note, 200, `matches[${i}].note`, { optional: true }),
       score: str(m.score, 20, `matches[${i}].score`, { optional: true }),
       teams: m.teams.map((team, t) => {
@@ -214,6 +242,7 @@ function validateState(input) {
   return {
     members: cleanMembers,
     funds: cleanFunds,
+    venues: cleanVenues,
     matches: cleanMatches,
   };
 }
@@ -248,6 +277,7 @@ async function loadState(env = process.env) {
   // Older saves: drop the removed "role" field and default the shirt number.
   state.members = (state.members || []).map(({ role, ...m }) => ({ ...m, number: m.number ?? null }));
   if (!Array.isArray(state.funds)) state.funds = [];
+  if (!Array.isArray(state.venues)) state.venues = [];
   return state;
 }
 

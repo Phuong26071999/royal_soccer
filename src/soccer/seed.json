@@ -20,5 +20,6 @@
     { "id": "thanh-phong", "name": "Thanh Phong", "number": null, "tier": 3, "goals": 0, "avatar": "" }
   ],
   "funds": [],
+  "venues": [],
   "matches": []
 }

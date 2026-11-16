@@ -18,6 +18,7 @@ const { ValidationError, getBackend, loadState, parseAvatarDataUrl, saveAvatar, 
 const MAX_BODY_BYTES = 600 * 1024; // 400 KB GIF + base64 overhead
 const UPLOAD_LIMIT = { limit: 30, windowSeconds: 10 * 60 };
 const ID = /^(?:club-)?[a-z0-9-]{1,40}$/; // club-<memberId> holds a member's custom club logo
+const VENUE_ID = /^venue-[a-z0-9-]{4,30}-[0-3]$/; // venue-<venueId>-<slot 0-3>: photos of a pitch
 
 const MESSAGES = {
   method_not_allowed: 'Method not allowed.',
@@ -40,7 +41,7 @@ async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const id = String((req.query && req.query.id) || new URL(req.url, 'http://x').searchParams.get('id') || '');
-      if (!ID.test(id)) throw new RequestError(400, 'invalid_request');
+      if (!ID.test(id) && !VENUE_ID.test(id)) throw new RequestError(400, 'invalid_request');
       const photo = await loadAvatar(id);
       if (!photo) throw new RequestError(404, 'not_found');
       const bytes = Buffer.from(photo.data, 'base64');
@@ -57,10 +58,13 @@ async function handler(req, res) {
     assertJsonRequest(req, MAX_BODY_BYTES);
     const body = await readBody(req, MAX_BODY_BYTES);
     const id = String((body && body.id) || '');
-    if (!ID.test(id)) throw new RequestError(400, 'invalid_request');
-    const state = await loadState();
-    const ownerId = id.startsWith('club-') ? id.slice(5) : id;
-    if (!state.members.some((m) => m.id === ownerId)) throw new RequestError(400, 'invalid_request');
+    const isVenue = VENUE_ID.test(id);
+    if (!isVenue && !ID.test(id)) throw new RequestError(400, 'invalid_request');
+    if (!isVenue) {
+      const state = await loadState();
+      const ownerId = id.startsWith('club-') ? id.slice(5) : id;
+      if (!state.members.some((m) => m.id === ownerId)) throw new RequestError(400, 'invalid_request');
+    }
     const photo = parseAvatarDataUrl(body.photo);
 
     const limit = await hitLimit('soccer-avatar', getClientIp(req), UPLOAD_LIMIT);

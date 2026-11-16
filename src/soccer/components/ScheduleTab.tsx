@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { Match, SoccerState } from '../types';
+import { Match, SoccerState, Venue } from '../types';
 import { formatMatchDate, formatMoney, matchCostTotal, matchShare, participantsOf, randomId } from '../utils';
 import Avatar from './Avatar';
+import { allVenues, isPreset } from '../venues';
+import VenuePicker from './VenuePicker';
+import VenueDialog from './VenueDialog';
 import MonthCalendar from './MonthCalendar';
 
 interface Props {
@@ -10,6 +13,9 @@ interface Props {
   onAdd: (match: Match) => void;
   onUpdate: (match: Match) => void;
   onRemove: (id: string) => void;
+  onAddVenue: (venue: Venue) => void;
+  onUpdateVenue: (venue: Venue) => void;
+  onRemoveVenue: (venueId: string) => void;
 }
 
 const TEAM_NAMES = ['Đội 1', 'Đội 2', 'Đội 3', 'Đội 4'];
@@ -109,10 +115,13 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
   );
 };
 
-const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, featured }: {
+const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, onPickVenue, featured }: {
   match: Match; state: SoccerState; isAdmin: boolean; featured?: boolean;
-  onUpdate: (m: Match) => void; onRemove: (id: string) => void;
+  onUpdate: (m: Match) => void; onRemove: (id: string) => void; onPickVenue: (match: Match) => void;
 }) => {
+  const venue = allVenues(state).find((v) => v.id === match.venueId);
+  const photos = (venue && venue.images) || [];
+  const mapUrl = match.mapUrl || (venue && venue.mapUrl) || '';
   const [score, setScore] = useState(match.score);
   const byId = new Map(state.members.map((m) => [m.id, m]));
   const d = new Date(match.date);
@@ -128,7 +137,6 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, featured }: {
         <div className="sc-match-info">
           {featured && <span className="sc-chip ok">Trận sắp tới</span>}
           <h3>{formatMatchDate(match.date)}</h3>
-          <p><i className="bx bx-map" aria-hidden="true"></i> {match.location}</p>
           {match.note && <p className="sc-muted">{match.note}</p>}
         </div>
         <div className="sc-score">
@@ -137,6 +145,24 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, featured }: {
               onChange={(e) => setScore(e.target.value)} onBlur={() => score !== match.score && onUpdate({ ...match, score: score.trim() })} />
           ) : match.score ? <b>{match.score}</b> : <span className="sc-muted">Chưa có tỉ số</span>}
         </div>
+      </div>
+      <div className="sc-match-venue">
+        <div className="sc-mv-thumb">
+          {photos[0] ? <a href={photos[0]} target="_blank" rel="noopener noreferrer" aria-label="Xem hình sân"><img src={photos[0]} alt="" loading="lazy" /></a> : <i className="bx bx-map" aria-hidden="true"></i>}
+        </div>
+        <div className="sc-mv-text">
+          <b>{match.location}</b>
+          {match.address && <p className="sc-muted">{match.address}</p>}
+          <div className="sc-mv-links">
+            {mapUrl && /^https:\/\//i.test(mapUrl) && (
+              <a className="sc-map-link" href={mapUrl} target="_blank" rel="noopener noreferrer"><i className="bx bx-map-pin" aria-hidden="true"></i>Xem bản đồ</a>
+            )}
+            {photos.slice(1).map((url) => (
+              <a key={url} className="sc-mv-mini" href={url} target="_blank" rel="noopener noreferrer" aria-label="Xem hình sân"><img src={url} alt="" loading="lazy" /></a>
+            ))}
+          </div>
+        </div>
+        {isAdmin && <button type="button" className="sc-btn ghost small" onClick={() => onPickVenue(match)}><i className="bx bx-transfer-alt" aria-hidden="true"></i>Đổi sân</button>}
       </div>
       {match.teams.length > 0 && (
         <div className={`sc-match-teams n${match.teams.length}`}>
@@ -165,8 +191,20 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, featured }: {
   );
 };
 
-const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove }: Props) => {
-  const [form, setForm] = useState({ date: '', location: '', note: '' });
+interface VenueDialogState { venue?: Venue; target: 'form' | string }
+
+/** Copies a venue onto a match (name, address, map link and which venue it is). */
+const withVenue = (match: Match, v: Venue): Match => {
+  const { address, mapUrl, venueId, ...rest } = match;
+  return { ...rest, location: v.name, ...(v.address ? { address: v.address } : {}), ...(v.mapUrl ? { mapUrl: v.mapUrl } : {}), venueId: v.id };
+};
+
+const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove, onAddVenue, onUpdateVenue, onRemoveVenue }: Props) => {
+  const [form, setForm] = useState({ date: '', venue: '', note: '' });
+  const [chooserFor, setChooserFor] = useState('');
+  const [venueDialog, setVenueDialog] = useState<VenueDialogState | null>(null);
+  const venues = allVenues(state);
+  const chooserMatch = state.matches.find((m) => m.id === chooserFor);
   const [error, setError] = useState('');
   const upcoming = state.matches.filter(isUpcoming).sort((a, b) => a.date.localeCompare(b.date));
   const past = state.matches.filter((m) => !isUpcoming(m)).sort((a, b) => b.date.localeCompare(a.date));
@@ -174,13 +212,32 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove }: Props) => {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.date) { setError('Chọn ngày giờ đá.'); return; }
-    if (!form.location.trim()) { setError('Nhập địa điểm sân.'); return; }
-    onAdd({ id: randomId(), date: form.date, location: form.location.trim(), note: form.note.trim(), score: '', teams: [] });
-    setForm({ date: '', location: form.location, note: '' });
+    const venue = venues.find((v) => v.id === form.venue);
+    if (!venue) { setError('Chọn địa điểm sân.'); return; }
+    onAdd(withVenue({ id: randomId(), date: form.date, location: '', note: form.note.trim(), score: '', teams: [] }, venue));
+    setForm({ date: '', venue: form.venue, note: '' });
     setError('');
   };
 
-  const cardProps = { state, isAdmin, onUpdate, onRemove };
+  const saveVenue = (v: Venue) => {
+    const editing = state.venues.some((x) => x.id === v.id); // a built-in pitch is added as an override the first time
+    if (editing) onUpdateVenue(v); else onAddVenue(v);
+    const target = venueDialog && venueDialog.target;
+    if (target === 'form') setForm((f) => ({ ...f, venue: v.id }));
+    else if (target) {
+      const m = state.matches.find((x) => x.id === target);
+      if (m) onUpdate(withVenue(m, v));
+      setChooserFor('');
+    }
+    setVenueDialog(null);
+  };
+  const deleteVenue = (venueId: string) => {
+    onRemoveVenue(venueId);
+    setForm((f) => (f.venue === venueId ? { ...f, venue: '' } : f));
+    setVenueDialog(null);
+  };
+
+  const cardProps = { state, isAdmin, onUpdate, onRemove, onPickVenue: (m: Match) => setChooserFor(m.id) };
   const showMatch = (id: string) => {
     const el = document.getElementById(`match-${id}`);
     if (!el) return;
@@ -198,7 +255,11 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove }: Props) => {
           <h3>Tạo lịch đá</h3>
           <div className="sc-form-grid">
             <label><span>Ngày giờ</span><input type="datetime-local" value={form.date} onChange={(e) => { setForm({ ...form, date: e.target.value }); setError(''); }} /></label>
-            <label><span>Địa điểm</span><input value={form.location} maxLength={120} placeholder="Tên sân" onChange={(e) => { setForm({ ...form, location: e.target.value }); setError(''); }} /></label>
+            <div className="sc-span-2 sc-venues">
+              <span className="sc-venues-label">Địa điểm</span>
+              <VenuePicker venues={venues} value={form.venue} onChange={(id) => { setForm({ ...form, venue: id }); setError(''); }}
+                onAdd={() => setVenueDialog({ target: 'form' })} onEdit={(v) => setVenueDialog({ venue: v, target: 'form' })} />
+            </div>
             <label className="sc-span-2"><span>Ghi chú (tùy chọn)</span><input value={form.note} maxLength={200} placeholder="Mang áo màu, tiền sân..." onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
           </div>
           {error && <small className="sc-error" role="alert">{error}</small>}
@@ -221,6 +282,22 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove }: Props) => {
           <div className="sc-match-list">{past.map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}</div>
         </>
       )}
+
+      {chooserMatch && !venueDialog && (
+        <div className="sc-overlay" onMouseDown={(e) => e.target === e.currentTarget && setChooserFor('')}>
+          <div className="sc-dialog sc-venue-chooser" role="dialog" aria-modal="true" aria-labelledby="sc-chooser-title">
+            <button type="button" className="sc-close" onClick={() => setChooserFor('')} aria-label="Đóng"><i className="bx bx-x"></i></button>
+            <h2 id="sc-chooser-title">Chọn địa điểm</h2>
+            <p className="sc-muted">{formatMatchDate(chooserMatch.date)}</p>
+            <VenuePicker venues={venues} value={chooserMatch.venueId || ''}
+              onChange={(id) => { const v = venues.find((x) => x.id === id); if (v) onUpdate(withVenue(chooserMatch, v)); setChooserFor(''); }}
+              onAdd={() => setVenueDialog({ target: chooserMatch.id })} onEdit={(v) => setVenueDialog({ venue: v, target: chooserMatch.id })} />
+          </div>
+        </div>
+      )}
+      {venueDialog && <VenueDialog key={venueDialog.venue?.id || 'new'} venue={venueDialog.venue} onClose={() => setVenueDialog(null)} onSave={saveVenue}
+        onRemove={venueDialog.venue && isPreset(venueDialog.venue.id) && !state.venues.some((x) => x.id === venueDialog.venue!.id) ? undefined : deleteVenue}
+        restoreDefault={Boolean(venueDialog.venue && isPreset(venueDialog.venue.id))} />}
     </section>
   );
 };

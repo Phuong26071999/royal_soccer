@@ -111,6 +111,9 @@ $ease: cubic-bezier(.16, 1, .3, 1);
 .sc-title { flex: 1; min-width: 0;
     h1 { font-family: $display; font-weight: 800; font-size: 3.4rem; line-height: 1; text-transform: uppercase; display: flex; align-items: center; gap: .8rem;
         i { color: $accent; font-size: 3rem; } } }
+.sc-title .sc-logo-ball { flex-shrink: 0; width: 3.6rem; height: 3.6rem; filter: drop-shadow(0 .2rem .5rem rgba(0, 0, 0, .45)); }
+.sc-logo-ball.spin { animation: sc-ball-spin 3.2s linear infinite; }
+@keyframes sc-ball-spin { to { transform: rotate(360deg); } }
 .sc-scoreboard {
     display: flex; border-radius: $r-sm; overflow: hidden; background: #050d09; box-shadow: inset 0 0 0 .1rem $line; flex-shrink: 0;
     > div { padding: .6rem 1.6rem; text-align: center; }
@@ -1059,3 +1062,72 @@ button.sc-pick:active { transform: scale(.98); }
 .sc-fund-chevron { font-size: 2.8rem; color: $soft; transition: rotate .25s $ease; &.up { rotate: 180deg; color: $accent; } }
 .sc-fund-head .sc-row-gap { flex-wrap: nowrap; align-items: center; }
 @media (max-width: 760px) { .sc-fund-head .sc-row-gap { flex-wrap: wrap; width: 100%; justify-content: flex-end; } }
+
+/* venue picker in the match form + map link on match cards */
+.sc-venues { display: flex; flex-direction: column; gap: .8rem; .sc-venues-label { color: $soft; font-size: 1.35rem; } }
+.sc-venue-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr)); gap: .8rem; }
+.sc-venue { position: relative; display: flex; align-items: center; gap: 1.1rem; padding: 1.2rem 1.4rem; border-radius: $r-sm; cursor: pointer; background: rgba(5, 13, 9, .4); box-shadow: inset 0 0 0 .1rem $line; transition: box-shadow .15s, background .15s;
+    > input { position: absolute; opacity: 0; pointer-events: none; }
+    > i { font-size: 2.6rem; color: $soft; flex-shrink: 0; }
+    .sc-venue-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .2rem; b { font-family: $display; font-size: 2rem; font-weight: 700; line-height: 1.1; } small { color: $soft; font-size: 1.25rem; line-height: 1.3; } }
+    &:hover { box-shadow: inset 0 0 0 .15rem $chalk; }
+    &.on { background: rgba(200, 240, 49, .12); box-shadow: inset 0 0 0 .2rem $accent; > i { color: $accent; } }
+    &:has(> input:focus-visible) { outline: .2rem solid $accent; outline-offset: .2rem; } }
+.sc-map-link { display: inline-flex; align-items: center; gap: .4rem; flex-shrink: 0; padding: .4rem 1rem; border-radius: 99rem; font-size: 1.25rem; font-weight: 600; color: $accent; background: rgba(200, 240, 49, .1); box-shadow: inset 0 0 0 .1rem rgba(200, 240, 49, .35); transition: background .15s; i { font-size: 1.6rem; } &:hover { background: rgba(200, 240, 49, .22); } }
+.sc-match-info .sc-venue-addr { font-size: 1.3rem; margin-top: -.2rem; }
+.sc-match-info .sc-map-link { margin-top: .6rem; }
+@media (max-width: 760px) { .sc-venue { flex-wrap: wrap; .sc-map-link { margin-left: 3.7rem; } } }
+
+/* ---------- venues: picker cards, add/edit dialog, venue block on match cards ---------- */
+.sc-vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr)); gap: 1.2rem; }
+.sc-vcard { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: $r; text-align: left; cursor: pointer; background: $surface-2;
+    box-shadow: inset 0 0 0 .1rem $line, 0 .8rem 2rem rgba(0, 0, 0, .18); transition: transform .2s $ease, box-shadow .2s;
+    &:hover { transform: translateY(-.3rem); box-shadow: inset 0 0 0 .15rem $chalk, 0 1.2rem 2.6rem rgba(0, 0, 0, .28); }
+    &:focus-visible { outline: .2rem solid $accent; outline-offset: .2rem; }
+    &.on { box-shadow: inset 0 0 0 .25rem $accent, 0 1rem 2.6rem rgba(200, 240, 49, .16); }
+    .sc-vcard-media { position: relative; height: 11.5rem; display: grid; place-items: center; overflow: hidden;
+        background: repeating-linear-gradient(90deg, $stripe-a 0 4rem, $stripe-b 4rem 8rem);
+        > i { font-size: 5.2rem; color: rgba(236, 246, 238, .28); }
+        > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .4s $ease; }
+        &::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(5, 13, 9, .55)); pointer-events: none; } }
+    &:hover .sc-vcard-media > img { transform: scale(1.05); }
+    .sc-vcard-check { position: absolute; z-index: 2; top: .9rem; right: .9rem; width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: $accent; color: $accent-ink; font-size: 2.2rem; box-shadow: 0 .3rem .8rem rgba(0, 0, 0, .4); opacity: 0; scale: .5; transition: opacity .2s, scale .25s $ease; }
+    &.on .sc-vcard-check { opacity: 1; scale: 1; }
+    .sc-vcard-count { position: absolute; z-index: 2; left: .9rem; bottom: .8rem; display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .8rem; border-radius: 99rem; background: rgba(5, 13, 9, .65); font-size: 1.2rem; font-weight: 600; i { font-size: 1.5rem; } }
+    .sc-vcard-body { display: flex; flex-direction: column; gap: .6rem; padding: 1.2rem 1.4rem 1.4rem; flex: 1; }
+    .sc-vcard-name { font-family: $display; font-weight: 800; font-size: 2.3rem; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
+    .sc-vcard-addr { display: flex; gap: .6rem; color: $soft; font-size: 1.3rem; line-height: 1.35; i { flex-shrink: 0; font-size: 1.7rem; color: $accent; margin-top: .1rem; } span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; } }
+    .sc-vcard-actions { display: flex; align-items: center; gap: .8rem; margin-top: auto; padding-top: .6rem; flex-wrap: wrap; }
+    .sc-vcard-edit { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem 1rem; border-radius: 99rem; font-size: 1.25rem; font-weight: 600; color: $soft; box-shadow: inset 0 0 0 .1rem $line; &:hover { color: $text; box-shadow: inset 0 0 0 .15rem $chalk; } i { font-size: 1.6rem; } }
+    &.add { align-items: center; justify-content: center; gap: .6rem; min-height: 22rem; padding: 2rem; text-align: center; background: rgba(5, 13, 9, .3); box-shadow: inset 0 0 0 .2rem rgba(236, 246, 238, .22); border: none;
+        &:hover { box-shadow: inset 0 0 0 .2rem $accent; background: rgba(200, 240, 49, .06); }
+        .sc-vcard-plus { width: 5.4rem; height: 5.4rem; border-radius: 50%; display: grid; place-items: center; font-size: 3rem; color: $accent-ink; background: $accent; box-shadow: 0 .6rem 1.6rem rgba(200, 240, 49, .25); transition: rotate .3s $ease; }
+        &:hover .sc-vcard-plus { rotate: 90deg; }
+        b { font-family: $display; font-weight: 800; font-size: 2.3rem; text-transform: uppercase; }
+        small { color: $soft; font-size: 1.3rem; max-width: 18rem; } } }
+
+.sc-venue-dialog { width: min(48rem, 100%); }
+.sc-venue-photos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; }
+.sc-venue-photo { position: relative; aspect-ratio: 1; border-radius: $r-sm; overflow: hidden; background: rgba(5, 13, 9, .45); box-shadow: inset 0 0 0 .1rem $line;
+    > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    > button { position: absolute; top: .3rem; right: .3rem; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: rgba(5, 13, 9, .75); color: #fff; font-size: 1.8rem; &:hover { background: $danger; } }
+    &.add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem; color: $soft; box-shadow: inset 0 0 0 .15rem rgba(236, 246, 238, .25); i { font-size: 2.8rem; color: $accent; } small { font-size: 1.15rem; } &:hover:not(:disabled) { box-shadow: inset 0 0 0 .15rem $accent; } } }
+.sc-venue-actions { display: flex; gap: 1rem; justify-content: flex-end; flex-wrap: wrap; margin-top: 1.4rem; .sc-btn { margin-top: 0 !important; width: auto !important; } }
+.sc-venue-chooser { width: min(84rem, 100%); h2 { font-family: $display; font-weight: 800; font-size: 2.8rem; text-transform: uppercase; } > p { margin-bottom: 1.6rem; } padding-bottom: 2.4rem; }
+
+.sc-match-venue { display: flex; align-items: center; gap: 1.4rem; margin-top: 1.2rem; padding: 1.1rem 1.3rem; border-radius: $r-sm; background: rgba(5, 13, 9, .32); box-shadow: inset 0 0 0 .1rem $line;
+    .sc-mv-thumb { flex-shrink: 0; width: 7.2rem; height: 7.2rem; border-radius: $r-sm; overflow: hidden; display: grid; place-items: center; background: repeating-linear-gradient(90deg, $stripe-a 0 2rem, $stripe-b 2rem 4rem);
+        > i { font-size: 3rem; color: rgba(236, 246, 238, .45); } a, img { display: block; width: 100%; height: 100%; } img { object-fit: cover; } }
+    .sc-mv-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .3rem;
+        > b { font-family: $display; font-weight: 800; font-size: 2.2rem; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
+        p { font-size: 1.3rem; line-height: 1.35; } }
+    .sc-mv-links { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin-top: .4rem; }
+    .sc-mv-mini { width: 3.4rem; height: 3.4rem; border-radius: .8rem; overflow: hidden; box-shadow: inset 0 0 0 .1rem $line; img { width: 100%; height: 100%; object-fit: cover; display: block; } } }
+@media (max-width: 760px) {
+    .sc-vgrid { grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .9rem; }
+    .sc-vcard .sc-vcard-media { height: 9rem; } .sc-vcard .sc-vcard-name { font-size: 1.9rem; } .sc-vcard.add { min-height: 17rem; }
+    .sc-venue-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .sc-match-venue { flex-wrap: wrap; .sc-mv-thumb { width: 6rem; height: 6rem; } .sc-btn { width: 100%; } } }
+
+/* text dialogs (venue, new fund): normal text inputs instead of the wide-spaced PIN look */
+.sc-venue-dialog .sc-field, .sc-dialog.small:has(#sc-newfund-title) .sc-field { margin-top: 1.2rem; input { font-size: 1.55rem; letter-spacing: 0; } }

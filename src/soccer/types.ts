@@ -55,6 +55,12 @@ export interface Match {
   /** Local date-time string, e.g. 2026-11-20T19:30 */
   date: string;
   location: string;
+  /** Street address of the pitch (set when it was picked from the venue list). */
+  address?: string;
+  /** Google Maps link of the pitch (https). */
+  mapUrl?: string;
+  /** Id of the venue it was picked from (a preset or one of state.venues). */
+  venueId?: string;
   note: string;
   score: string;
   /** Member ids per team (empty until teams are saved). */
@@ -76,5 +82,17 @@ export interface SoccerState {
   updatedAt: string | null;
   members: Member[];
   funds: Fund[];
+  /** Pitches the group added itself (the built-in ones live in venues.ts). */
+  venues: Venue[];
   matches: Match[];
+}
+
+export interface Venue {
+  id: string;
+  name: string;
+  address: string;
+  /** Google Maps link (https). */
+  mapUrl: string;
+  /** Photos of the pitch: uploaded (/api/soccer-avatar?id=venue-...) or https URLs. Up to 4. */
+  images?: string[];
 }

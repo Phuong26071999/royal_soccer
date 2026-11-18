@@ -269,3 +269,29 @@ export function resizeImage(file: File, maxSide = 720, quality = 0.8): Promise<s
     img.src = url;
   });
 }
+
+export const MAX_MONEY = 1000000000;
+
+/**
+ * Next amount (VND) of a money field after the user edited its text.
+ * Typing appends a digit in thousands (100 -> 100.000), backspace drops the last typed digit,
+ * and a pasted/replaced full amount (4+ digits, e.g. 250000) is kept as it is.
+ */
+export function nextMoney(prev: number, text: string): number {
+  const digits = text.replace(/\D/g, '');
+  const before = prev ? String(prev) : '';
+  if (!digits) return 0;
+  let next: number;
+  if (digits.length === before.length + 1 && digits.startsWith(before)) {
+    // one digit typed at the end: it goes on the thousands
+    next = (prev / 1000 * 10 + Number(digits[digits.length - 1])) * 1000;
+    if (!Number.isInteger(prev / 1000)) next = Number(digits);
+  } else if (prev && digits.length === before.length - 1 && before.startsWith(digits)) {
+    // backspace: drop the last typed digit of the thousands
+    next = Math.floor(prev / 10000) * 1000;
+  } else {
+    // select-all + typing a short number means thousands; a longer one is the exact amount
+    next = digits.length <= 3 ? Number(digits) * 1000 : Number(digits);
+  }
+  return next > MAX_MONEY ? prev : next;
+}

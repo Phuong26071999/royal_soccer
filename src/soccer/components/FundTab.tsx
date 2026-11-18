@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Expense, Fund, Member, SoccerState } from '../types';
 import { formatMoney, fundTotals, monthKey, monthLabel, randomId } from '../utils';
 import Avatar from './Avatar';
+import MoneyInput from './MoneyInput';
 
 interface Props {
   state: SoccerState;
@@ -49,10 +50,10 @@ const FundView = ({ fund, members, canEdit, onTogglePaid, onSetFee, onAddExpense
     return monthKey();
   };
   const [month, setMonth] = useState(initialMonth);
-  const [feeDraft, setFeeDraft] = useState(String(fund.fee));
-  const [exp, setExp] = useState({ date: today(), note: '', amount: '' });
+  const [feeDraft, setFeeDraft] = useState(fund.fee);
+  const [exp, setExp] = useState({ date: today(), note: '', amount: 0 });
   const [expError, setExpError] = useState('');
-  useEffect(() => setFeeDraft(String(fund.fee)), [fund.fee]);
+  useEffect(() => setFeeDraft(fund.fee), [fund.fee]);
 
   const paid = new Set(fund.payments[month] || []);
   const paidMembers = members.filter((m) => paid.has(m.id));
@@ -64,11 +65,11 @@ const FundView = ({ fund, members, canEdit, onTogglePaid, onSetFee, onAddExpense
 
   const submitExpense = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = Number(exp.amount.replace(/[^\d]/g, ''));
+    const amount = exp.amount;
     if (!exp.note.trim()) { setExpError('Nhập nội dung khoản chi.'); return; }
     if (!amount) { setExpError('Nhập số tiền lớn hơn 0.'); return; }
     onAddExpense({ id: randomId(), date: exp.date, note: exp.note.trim().slice(0, 120), amount });
-    setExp({ date: today(), note: '', amount: '' });
+    setExp({ date: today(), note: '', amount: 0 });
     setExpError('');
   };
 
@@ -80,9 +81,9 @@ const FundView = ({ fund, members, canEdit, onTogglePaid, onSetFee, onAddExpense
           <input type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
         </label>
         {canEdit ? (
-          <form className="sc-fee" onSubmit={(e) => { e.preventDefault(); const v = Number(feeDraft.replace(/[^\d]/g, '')); if (v >= 0) onSetFee(v); }}>
+          <form className="sc-fee" onSubmit={(e) => { e.preventDefault(); if (feeDraft >= 0) onSetFee(feeDraft); }}>
             <label htmlFor={`sc-fee-${fund.id}`}>Tiền quỹ mỗi tháng</label>
-            <div><input id={`sc-fee-${fund.id}`} inputMode="numeric" value={feeDraft} onChange={(e) => setFeeDraft(e.target.value)} /><button className="sc-btn small" type="submit">Lưu</button></div>
+            <div><MoneyInput id={`sc-fee-${fund.id}`} value={feeDraft} onChange={setFeeDraft} placeholder="100.000" /><button className="sc-btn small" type="submit">Lưu</button></div>
           </form>
         ) : (
           <span className="sc-muted">Tiền quỹ: <b>{formatMoney(fund.fee)}</b>/người/tháng</span>
@@ -148,7 +149,7 @@ const FundView = ({ fund, members, canEdit, onTogglePaid, onSetFee, onAddExpense
           <form className="sc-expense-form" onSubmit={submitExpense} noValidate>
             <label><span>Ngày</span><input type="date" value={exp.date} onChange={(e) => setExp({ ...exp, date: e.target.value || today() })} /></label>
             <label className="sc-grow"><span>Nội dung</span><input value={exp.note} maxLength={120} placeholder="Tiền sân, nước, áo..." onChange={(e) => { setExp({ ...exp, note: e.target.value }); setExpError(''); }} /></label>
-            <label><span>Số tiền (đ)</span><input inputMode="numeric" value={exp.amount} placeholder="300000" onChange={(e) => { setExp({ ...exp, amount: e.target.value }); setExpError(''); }} /></label>
+            <label><span>Số tiền (đ)</span><MoneyInput value={exp.amount} placeholder="300.000" onChange={(amount) => { setExp({ ...exp, amount }); setExpError(''); }} /></label>
             <button type="submit" className="sc-btn">Thêm khoản chi</button>
             {expError && <small className="sc-error" role="alert">{expError}</small>}
           </form>

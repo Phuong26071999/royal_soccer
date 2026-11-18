@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Match, SoccerState, Venue } from '../types';
 import { formatMatchDate, formatMoney, matchCostTotal, matchShare, participantsOf, randomId } from '../utils';
 import Avatar from './Avatar';
+import MoneyInput from './MoneyInput';
 import { allVenues, isPreset } from '../venues';
 import VenuePicker from './VenuePicker';
 import VenueDialog from './VenueDialog';
@@ -29,7 +30,7 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
   match: Match; state: SoccerState; isAdmin: boolean; onUpdate: (m: Match) => void;
 }) => {
   const [note, setNote] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(0);
   const [error, setError] = useState('');
   const byId = new Map(state.members.map((m) => [m.id, m]));
   const players = participantsOf(match);
@@ -44,10 +45,10 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
   };
   const addCost = (e: React.FormEvent) => {
     e.preventDefault();
-    const value = Number(amount.replace(/[^0-9]/g, ''));
+    const value = amount;
     if (!value) { setError('Nhập số tiền.'); return; }
     onUpdate({ ...match, costs: [...costs, { id: randomId(), note: note.trim().slice(0, 60), amount: value }] });
-    setNote(''); setAmount(''); setError('');
+    setNote(''); setAmount(0); setError('');
   };
 
   const summary = `${players.length} người${total ? ` · ${formatMoney(share)}/người` : ''}`;
@@ -55,30 +56,41 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
     <details className="sc-attend">
       <summary><i className="bx bx-group" aria-hidden="true"></i> Điểm danh &amp; chi phí <span className="sc-attend-sum">{summary}</span></summary>
       <div className="sc-attend-body">
-        <div className="sc-attend-head">
-          <b>Tham gia ({players.length})</b>
+        <div className="sc-roster-head">
+          <div className="sc-roster-title">
+            <b>Người tham gia</b>
+            <span className="sc-roster-count"><b>{players.length}</b>/{state.members.length}</span>
+          </div>
+          <span className="sc-roster-bar" aria-hidden="true"><span style={{ width: `${state.members.length ? Math.round((players.length / state.members.length) * 100) : 0}%` }}></span></span>
           {isAdmin && (
-            <span className="sc-row-gap">
-              {fromTeams.length > 0 && <button type="button" className="sc-btn ghost small" onClick={() => onUpdate({ ...match, attendees: fromTeams })}>Lấy từ đội hình</button>}
-              <button type="button" className="sc-btn ghost small" onClick={() => onUpdate({ ...match, attendees: state.members.map((m) => m.id) })}>Chọn tất cả</button>
-              {players.length > 0 && <button type="button" className="sc-btn ghost small" onClick={() => onUpdate({ ...match, attendees: [] })}>Bỏ chọn</button>}
-            </span>
+            <div className="sc-roster-actions">
+              {fromTeams.length > 0 && <button type="button" onClick={() => onUpdate({ ...match, attendees: fromTeams })}><i className="bx bx-shuffle" aria-hidden="true"></i>Lấy từ đội hình</button>}
+              <button type="button" onClick={() => onUpdate({ ...match, attendees: state.members.map((m) => m.id) })}><i className="bx bx-check-double" aria-hidden="true"></i>Chọn tất cả</button>
+              {players.length > 0 && <button type="button" onClick={() => onUpdate({ ...match, attendees: [] })}><i className="bx bx-x" aria-hidden="true"></i>Bỏ chọn</button>}
+            </div>
           )}
         </div>
         {isAdmin ? (
-          <div className="sc-pick-grid">
-            {state.members.map((m) => (
-              <button key={m.id} type="button" className={`sc-pick${players.includes(m.id) ? ' on' : ''}`} aria-pressed={players.includes(m.id)} onClick={() => toggle(m.id)}>
-                <span className="sc-pick-av"><Avatar member={m} size={38} />{players.includes(m.id) && <i className="bx bx-check" aria-hidden="true"></i>}</span>
-                <span className="sc-pick-name">{m.name}</span>
-                {m.number !== null && <small className="sc-pick-no">{m.number}</small>}
-              </button>
-            ))}
+          <div className="sc-roster">
+            {state.members.map((m, idx) => {
+              const on = players.includes(m.id);
+              return (
+                <button key={m.id} type="button" className={`sc-tile${on ? ' on' : ''}`} style={{ '--i': idx } as React.CSSProperties} aria-pressed={on} onClick={() => toggle(m.id)}>
+                  {m.number !== null && <small className="sc-tile-no">{m.number}</small>}
+                  <span className="sc-tile-av"><Avatar member={m} size={52} /><i className="bx bx-check" aria-hidden="true"></i></span>
+                  <span className="sc-tile-name">{m.name}</span>
+                </button>
+              );
+            })}
           </div>
         ) : players.length ? (
-          <div className="sc-pick-grid readonly">
+          <div className="sc-roster readonly">
             {players.map((id) => byId.get(id)).filter(Boolean).map((m) => (
-              <span key={m!.id} className="sc-pick on"><span className="sc-pick-av"><Avatar member={m!} size={38} /></span><span className="sc-pick-name">{m!.name}</span>{m!.number !== null && <small className="sc-pick-no">{m!.number}</small>}</span>
+              <span key={m!.id} className="sc-tile on">
+                {m!.number !== null && <small className="sc-tile-no">{m!.number}</small>}
+                <span className="sc-tile-av"><Avatar member={m!} size={52} /></span>
+                <span className="sc-tile-name">{m!.name}</span>
+              </span>
             ))}
           </div>
         ) : <p className="sc-muted">Chưa điểm danh.</p>}
@@ -98,7 +110,7 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
           <form className="sc-cost-form" onSubmit={addCost} noValidate>
             <input value={note} maxLength={60} placeholder="Khoản chi (tiền sân, nước...)" aria-label="Tên khoản chi" onChange={(e) => setNote(e.target.value)} list={`cost-presets-${match.id}`} />
             <datalist id={`cost-presets-${match.id}`}>{COST_PRESETS.map((p) => <option key={p} value={p} />)}</datalist>
-            <input inputMode="numeric" value={amount} placeholder="Số tiền (đ)" aria-label="Số tiền" onChange={(e) => { setAmount(e.target.value); setError(''); }} />
+            <MoneyInput value={amount} placeholder="Số tiền (đ)" aria-label="Số tiền" onChange={(v) => { setAmount(v); setError(''); }} />
             <button type="submit" className="sc-btn small"><i className="bx bx-plus" aria-hidden="true"></i>Thêm</button>
           </form>
         )}

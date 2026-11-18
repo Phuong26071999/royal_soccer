@@ -18,6 +18,7 @@ interface Props {
   onCloseFund: (fundId: string) => void;
   onReopenFund: (fundId: string) => void;
   onDeleteFund: (fundId: string) => void;
+  onEditFund: (fundId: string, name: string, startDate: string) => void;
 }
 
 const today = () => {
@@ -159,9 +160,9 @@ const FundView = ({ fund, members, canEdit, onTogglePaid, onSetFee, onAddExpense
 
 /* ---------- dialogs ---------- */
 
-const CreateFundDialog = ({ onClose, onCreate }: { onClose: () => void; onCreate: (name: string, startDate: string) => void }) => {
-  const [name, setName] = useState('');
-  const [date, setDate] = useState(today());
+const CreateFundDialog = ({ fund, onClose, onSubmit }: { fund?: Fund; onClose: () => void; onSubmit: (name: string, startDate: string) => void }) => {
+  const [name, setName] = useState(fund ? fund.name : '');
+  const [date, setDate] = useState(fund ? fund.startDate : today());
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -174,15 +175,15 @@ const CreateFundDialog = ({ onClose, onCreate }: { onClose: () => void; onCreate
     e.preventDefault();
     if (!name.trim()) { setError('Nhập tên đợt quỹ.'); return; }
     if (!date) { setError('Chọn ngày áp dụng.'); return; }
-    onCreate(name.trim().slice(0, 60), date);
+    onSubmit(name.trim().slice(0, 60), date);
   };
 
   return (
     <div className="sc-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <form className="sc-dialog small" role="dialog" aria-modal="true" aria-labelledby="sc-newfund-title" onSubmit={submit} noValidate>
         <button type="button" className="sc-close" onClick={onClose} aria-label="Đóng"><i className="bx bx-x"></i></button>
-        <h2 id="sc-newfund-title">Tạo quỹ</h2>
-        <p className="sc-muted">Mỗi đợt quỹ có danh sách đóng tiền và khoản chi riêng. Đóng quỹ khi kết thúc để lưu vào lịch sử.</p>
+        <h2 id="sc-newfund-title">{fund ? 'Sửa quỹ' : 'Tạo quỹ'}</h2>
+        <p className="sc-muted">{fund ? 'Đổi tên đợt quỹ hoặc ngày áp dụng. Danh sách đóng tiền và khoản chi giữ nguyên.' : 'Mỗi đợt quỹ có danh sách đóng tiền và khoản chi riêng. Đóng quỹ khi kết thúc để lưu vào lịch sử.'}</p>
         <label className="sc-field">
           <span>Tên đợt quỹ</span>
           <input autoFocus value={name} maxLength={60} placeholder="Quỹ mùa đông 2026" aria-label="Tên đợt quỹ"
@@ -193,7 +194,7 @@ const CreateFundDialog = ({ onClose, onCreate }: { onClose: () => void; onCreate
           <input type="date" value={date} aria-label="Ngày áp dụng" onChange={(e) => { setDate(e.target.value); setError(''); }} />
         </label>
         {error && <small className="sc-error" role="alert">{error}</small>}
-        <button type="submit" className="sc-btn"><i className="bx bx-plus" aria-hidden="true"></i>Tạo quỹ</button>
+        <button type="submit" className="sc-btn"><i className={`bx ${fund ? 'bx-save' : 'bx-plus'}`} aria-hidden="true"></i>{fund ? 'Lưu' : 'Tạo quỹ'}</button>
       </form>
     </div>
   );
@@ -247,12 +248,13 @@ const MonthBreakdown = ({ fund, memberCount }: { fund: Fund; memberCount: number
 
 const FundTab = ({
   state, isAdmin, lockState, onUnlock, onLock, onTogglePaid, onSetFee, onAddExpense, onRemoveExpense,
-  onCreateFund, onCloseFund, onReopenFund, onDeleteFund,
+  onCreateFund, onCloseFund, onReopenFund, onDeleteFund, onEditFund,
 }: Props) => {
   const [view, setView] = useState<'open' | 'history'>('open');
   const [openFundId, setOpenFundId] = useState('');
   const [expandedId, setExpandedId] = useState('');
   const [creating, setCreating] = useState(false);
+  const [editingFund, setEditingFund] = useState<Fund | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
 
   const openFunds = state.funds.filter((f) => f.status === 'open').sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -313,6 +315,7 @@ const FundTab = ({
                     <div className="sc-row-gap">
                       {isAdmin && (
                         <>
+                          <button type="button" className="sc-btn ghost small" onClick={(e) => { e.stopPropagation(); setEditingFund(f); }}><i className="bx bx-edit-alt" aria-hidden="true"></i>Sửa</button>
                           <button type="button" className="sc-btn ghost small" onClick={(e) => { e.stopPropagation(); askClose(f); }}><i className="bx bx-lock-alt" aria-hidden="true"></i>Đóng quỹ</button>
                           <button type="button" className="sc-btn ghost small sc-danger" onClick={(e) => { e.stopPropagation(); askDelete(f); }}><i className="bx bx-trash" aria-hidden="true"></i>Xóa quỹ</button>
                         </>
@@ -370,6 +373,7 @@ const FundTab = ({
                   )}
                   {isAdmin && (
                     <footer>
+                      <button type="button" className="sc-btn ghost small" onClick={() => setEditingFund(f)}><i className="bx bx-edit-alt" aria-hidden="true"></i>Sửa</button>
                       <button type="button" className="sc-btn ghost small" onClick={() => onReopenFund(f.id)}><i className="bx bx-lock-open-alt" aria-hidden="true"></i>Mở lại quỹ</button>
                       <button type="button" className="sc-btn ghost small sc-danger" onClick={() => askDelete(f)}><i className="bx bx-trash" aria-hidden="true"></i>Xóa quỹ</button>
                     </footer>
@@ -383,7 +387,8 @@ const FundTab = ({
         )
       )}
 
-      {creating && <CreateFundDialog onClose={() => setCreating(false)} onCreate={(name, date) => { const id = onCreateFund(name, date); setOpenFundId(id); setView('open'); setCreating(false); }} />}
+      {creating && <CreateFundDialog onClose={() => setCreating(false)} onSubmit={(name, date) => { const id = onCreateFund(name, date); setOpenFundId(id); setView('open'); setCreating(false); }} />}
+      {editingFund && <CreateFundDialog key={editingFund.id} fund={editingFund} onClose={() => setEditingFund(null)} onSubmit={(name, date) => { onEditFund(editingFund.id, name, date); setEditingFund(null); }} />}
       {confirm && <ConfirmDialog confirm={confirm} onCancel={() => setConfirm(null)} />}
     </section>
   );

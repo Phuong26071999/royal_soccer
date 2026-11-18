@@ -115,10 +115,50 @@ const AttendancePanel = ({ match, state, isAdmin, onUpdate }: {
   );
 };
 
+/** Edit the date/time and note of a match (the pitch is changed with "Đổi sân"). */
+const MatchEditDialog = ({ match, onClose, onSave }: { match: Match; onClose: () => void; onSave: (m: Match) => void }) => {
+  const [date, setDate] = useState(match.date);
+  const [note, setNote] = useState(match.note);
+  const [error, setError] = useState('');
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date) { setError('Chọn ngày giờ đá.'); return; }
+    onSave({ ...match, date, note: note.trim().slice(0, 200) });
+  };
+  return (
+    <div className="sc-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form className="sc-dialog small sc-venue-dialog" role="dialog" aria-modal="true" aria-labelledby="sc-edit-match-title" onSubmit={submit} noValidate>
+        <button type="button" className="sc-close" onClick={onClose} aria-label="Đóng"><i className="bx bx-x"></i></button>
+        <h2 id="sc-edit-match-title">Sửa trận</h2>
+        <p className="sc-muted">{match.location}</p>
+        <label className="sc-field">
+          <span>Ngày giờ</span>
+          <input type="datetime-local" value={date} autoFocus aria-label="Ngày giờ" onChange={(e) => { setDate(e.target.value); setError(''); }} />
+        </label>
+        <label className="sc-field">
+          <span>Ghi chú (tùy chọn)</span>
+          <input value={note} maxLength={200} placeholder="Mang áo màu, tiền sân..." aria-label="Ghi chú" onChange={(e) => setNote(e.target.value)} />
+        </label>
+        {error && <small className="sc-error" role="alert">{error}</small>}
+        <div className="sc-venue-actions">
+          <button type="button" className="sc-btn ghost" onClick={onClose}>Hủy</button>
+          <button type="submit" className="sc-btn"><i className="bx bx-save" aria-hidden="true"></i>Lưu</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
 const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, onPickVenue, featured }: {
   match: Match; state: SoccerState; isAdmin: boolean; featured?: boolean;
   onUpdate: (m: Match) => void; onRemove: (id: string) => void; onPickVenue: (match: Match) => void;
 }) => {
+  const [editing, setEditing] = useState(false);
   const venue = allVenues(state).find((v) => v.id === match.venueId);
   const photos = (venue && venue.images) || [];
   const mapUrl = match.mapUrl || (venue && venue.mapUrl) || '';
@@ -181,12 +221,14 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, onPickVenue, fea
       <AttendancePanel match={match} state={state} isAdmin={isAdmin} onUpdate={onUpdate} />
       {isAdmin && (
         <div className="sc-match-actions">
+          <button type="button" className="sc-btn ghost small" onClick={() => setEditing(true)}><i className="bx bx-edit-alt" aria-hidden="true"></i>Sửa trận</button>
           {match.teams.length > 0 && <button type="button" className="sc-btn ghost small" onClick={() => onUpdate({ ...match, teams: [] })}>Xóa đội hình</button>}
           <button type="button" className="sc-link-danger" onClick={() => window.confirm('Xóa trận này?') && onRemove(match.id)}>
             <i className="bx bx-trash" aria-hidden="true"></i> Xóa trận
           </button>
         </div>
       )}
+      {editing && <MatchEditDialog match={match} onClose={() => setEditing(false)} onSave={(next) => { onUpdate(next); setEditing(false); }} />}
     </article>
   );
 };
@@ -201,6 +243,7 @@ const withVenue = (match: Match, v: Venue): Match => {
 
 const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove, onAddVenue, onUpdateVenue, onRemoveVenue }: Props) => {
   const [form, setForm] = useState({ date: '', venue: '', note: '' });
+  const [view, setView] = useState<'upcoming' | 'past'>('upcoming');
   const [chooserFor, setChooserFor] = useState('');
   const [venueDialog, setVenueDialog] = useState<VenueDialogState | null>(null);
   const venues = allVenues(state);
@@ -248,6 +291,31 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove, onAddVenue, on
   };
   return (
     <section aria-label="Lịch đá">
+      <div className="sc-fund-bar">
+        <div className="sc-style-picker sc-fund-switch" role="tablist" aria-label="Lịch đá">
+          <button type="button" role="tab" aria-selected={view === 'upcoming'} className={view === 'upcoming' ? 'on' : ''} onClick={() => setView('upcoming')}>
+            Sắp diễn ra <b>{upcoming.length}</b>
+          </button>
+          <button type="button" role="tab" aria-selected={view === 'past'} className={view === 'past' ? 'on' : ''} onClick={() => setView('past')}>
+            <i className="bx bx-history" aria-hidden="true"></i>Lịch đã đá <b>{past.length}</b>
+          </button>
+        </div>
+      </div>
+
+      {view === 'upcoming' ? (
+        upcoming.length ? (
+          <div className="sc-match-list">
+            <MatchCard key={upcoming[0].id} match={upcoming[0]} featured {...cardProps} />
+          </div>
+        ) : (
+          <p className="sc-empty">Chưa có lịch đá nào sắp tới.{isAdmin ? ' Tạo trận ở form bên dưới.' : ''}</p>
+        )
+      ) : past.length ? (
+        <div className="sc-match-list">{past.map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}</div>
+      ) : (
+        <p className="sc-empty">Chưa có trận nào đã đá.</p>
+      )}
+
       <MonthCalendar matches={state.matches} onPickMatch={showMatch}
         onPickEmptyDay={isAdmin ? (day) => { setForm((f) => ({ ...f, date: `${day}T19:00` })); setError(''); document.querySelector('.sc-match-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } : undefined} />
       {isAdmin && (
@@ -267,19 +335,12 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove, onAddVenue, on
         </form>
       )}
 
-      <h3 className="sc-section-title">Sắp diễn ra</h3>
-      {upcoming.length ? (
-        <div className="sc-match-list">
-          {upcoming.map((m, i) => <MatchCard key={m.id} match={m} featured={i === 0} {...cardProps} />)}
-        </div>
-      ) : (
-        <p className="sc-empty">Chưa có lịch đá nào sắp tới.{isAdmin ? ' Tạo trận ở form phía trên.' : ''}</p>
-      )}
-
-      {past.length > 0 && (
+      {view === 'upcoming' && upcoming.length > 1 && (
         <>
-          <h3 className="sc-section-title">Đã đá</h3>
-          <div className="sc-match-list">{past.map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}</div>
+          <h3 className="sc-section-title">Các trận tiếp theo</h3>
+          <div className="sc-match-list">
+            {upcoming.slice(1).map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}
+          </div>
         </>
       )}
 

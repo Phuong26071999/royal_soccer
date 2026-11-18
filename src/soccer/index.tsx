@@ -227,6 +227,10 @@ const SoccerPage = () => {
     }));
     notify("Đã mở lại quỹ.");
   };
+  const editFund = (fundId: string, name: string, startDate: string) => {
+    updateFund((s) => ({ ...s, funds: s.funds.map((f) => (f.id === fundId ? { ...f, name, startDate } : f)) }));
+    notify('Đã cập nhật quỹ.');
+  };
   const deleteFund = (fundId: string) => {
     updateFund((s) => ({
       ...s,
@@ -437,7 +441,7 @@ const SoccerPage = () => {
             onCreateFund={createFund}
             onCloseFund={closeFund}
             onReopenFund={reopenFund}
-            onDeleteFund={deleteFund}
+            onDeleteFund={deleteFund} onEditFund={editFund}
           />
         )}
         {tab === "schedule" && (

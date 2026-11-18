@@ -1131,3 +1131,16 @@ button.sc-pick:active { transform: scale(.98); }
 
 /* text dialogs (venue, new fund): normal text inputs instead of the wide-spaced PIN look */
 .sc-venue-dialog .sc-field, .sc-dialog.small:has(#sc-newfund-title) .sc-field { margin-top: 1.2rem; input { font-size: 1.55rem; letter-spacing: 0; } }
+
+/* compact month calendar */
+.sc-cal { padding: 1.4rem 1.6rem 1.4rem; margin-top: 2rem; margin-bottom: 2rem; }
+.sc-cal-head { margin-bottom: .8rem; h3 { font-size: 2.2rem; } p { font-size: 1.25rem; } }
+.sc-cal-grid { gap: .35rem; }
+.sc-cal-dow { font-size: 1.2rem; padding-bottom: .2rem; }
+.sc-cal-day { min-height: 5.4rem; padding: .5rem .7rem; gap: .2rem; > b { font-size: 1.4rem; } }
+.sc-cal-match { font-size: 1.1rem; }
+@media (max-width: 760px) {
+    .sc-cal { padding: 1.2rem 1rem 1.2rem; }
+    .sc-cal-head h3 { font-size: 2rem; }
+    .sc-cal-day { min-height: 4.4rem; padding: .5rem .3rem; }
+}

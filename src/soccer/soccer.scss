@@ -1079,32 +1079,63 @@ button.sc-pick:active { transform: scale(.98); }
 @media (max-width: 760px) { .sc-venue { flex-wrap: wrap; .sc-map-link { margin-left: 3.7rem; } } }
 
 /* ---------- venues: picker cards, add/edit dialog, venue block on match cards ---------- */
-.sc-vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr)); gap: 1.2rem; }
-.sc-vcard { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: $r; text-align: left; cursor: pointer; background: $surface-2;
-    box-shadow: inset 0 0 0 .1rem $line, 0 .8rem 2rem rgba(0, 0, 0, .18); transition: transform .2s $ease, box-shadow .2s;
-    &:hover { transform: translateY(-.3rem); box-shadow: inset 0 0 0 .15rem $chalk, 0 1.2rem 2.6rem rgba(0, 0, 0, .28); }
-    &:focus-visible { outline: .2rem solid $accent; outline-offset: .2rem; }
-    &.on { box-shadow: inset 0 0 0 .25rem $accent, 0 1rem 2.6rem rgba(200, 240, 49, .16); }
-    .sc-vcard-media { position: relative; height: 11.5rem; display: grid; place-items: center; overflow: hidden;
+.sc-vgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr)); gap: 1.4rem; }
+.sc-vcard { position: relative; display: flex; flex-direction: column; overflow: hidden; border-radius: 1.8rem; text-align: left; cursor: pointer; isolation: isolate;
+    background: linear-gradient(180deg, $surface-2, $surface);
+    box-shadow: inset 0 0 0 .1rem $line, 0 .8rem 2.2rem rgba(0, 0, 0, .22);
+    animation: sc-vcard-in .55s $ease both, sc-vcard-glow 2.6s ease-in-out infinite; animation-delay: calc(var(--i, 0) * 80ms), .6s; animation-play-state: running, paused;
+    transition: transform .3s $ease, box-shadow .3s;
+    &:hover { transform: translateY(-.5rem); box-shadow: inset 0 0 0 .15rem rgba(236, 246, 238, .45), 0 1.6rem 3.4rem rgba(0, 0, 0, .38); }
+    &:active { transform: translateY(-.2rem) scale(.985); }
+    &:focus-visible { outline: .25rem solid $accent; outline-offset: .3rem; }
+    &.on { box-shadow: inset 0 0 0 .25rem $accent, 0 1rem 3rem rgba(200, 240, 49, .2); animation-play-state: running, running;
+        &:hover { box-shadow: inset 0 0 0 .25rem $accent, 0 1.6rem 3.6rem rgba(200, 240, 49, .3); } }
+
+    .sc-vcard-media { position: relative; height: 15rem; display: grid; place-items: center; overflow: hidden;
         background: repeating-linear-gradient(90deg, $stripe-a 0 4rem, $stripe-b 4rem 8rem);
-        > i { font-size: 5.2rem; color: rgba(236, 246, 238, .28); }
-        > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .4s $ease; }
-        &::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 55%, rgba(5, 13, 9, .55)); pointer-events: none; } }
-    &:hover .sc-vcard-media > img { transform: scale(1.05); }
-    .sc-vcard-check { position: absolute; z-index: 2; top: .9rem; right: .9rem; width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center; background: $accent; color: $accent-ink; font-size: 2.2rem; box-shadow: 0 .3rem .8rem rgba(0, 0, 0, .4); opacity: 0; scale: .5; transition: opacity .2s, scale .25s $ease; }
-    &.on .sc-vcard-check { opacity: 1; scale: 1; }
-    .sc-vcard-count { position: absolute; z-index: 2; left: .9rem; bottom: .8rem; display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .8rem; border-radius: 99rem; background: rgba(5, 13, 9, .65); font-size: 1.2rem; font-weight: 600; i { font-size: 1.5rem; } }
-    .sc-vcard-body { display: flex; flex-direction: column; gap: .6rem; padding: 1.2rem 1.4rem 1.4rem; flex: 1; }
-    .sc-vcard-name { font-family: $display; font-weight: 800; font-size: 2.3rem; line-height: 1.05; text-transform: uppercase; overflow-wrap: anywhere; }
-    .sc-vcard-addr { display: flex; gap: .6rem; color: $soft; font-size: 1.3rem; line-height: 1.35; i { flex-shrink: 0; font-size: 1.7rem; color: $accent; margin-top: .1rem; } span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; } }
-    .sc-vcard-actions { display: flex; align-items: center; gap: .8rem; margin-top: auto; padding-top: .6rem; flex-wrap: wrap; }
-    .sc-vcard-edit { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem 1rem; border-radius: 99rem; font-size: 1.25rem; font-weight: 600; color: $soft; box-shadow: inset 0 0 0 .1rem $line; &:hover { color: $text; box-shadow: inset 0 0 0 .15rem $chalk; } i { font-size: 1.6rem; } }
-    &.add { align-items: center; justify-content: center; gap: .6rem; min-height: 22rem; padding: 2rem; text-align: center; background: rgba(5, 13, 9, .3); box-shadow: inset 0 0 0 .2rem rgba(236, 246, 238, .22); border: none;
-        &:hover { box-shadow: inset 0 0 0 .2rem $accent; background: rgba(200, 240, 49, .06); }
-        .sc-vcard-plus { width: 5.4rem; height: 5.4rem; border-radius: 50%; display: grid; place-items: center; font-size: 3rem; color: $accent-ink; background: $accent; box-shadow: 0 .6rem 1.6rem rgba(200, 240, 49, .25); transition: rotate .3s $ease; }
+        > i { font-size: 5.6rem; color: rgba(236, 246, 238, .3); animation: sc-vcard-float 3.4s ease-in-out infinite; transition: color .3s; }
+        > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.02); transition: transform .8s $ease; }
+        /* dark fade at the bottom so the name stays readable */
+        &::after { content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: linear-gradient(180deg, rgba(5, 13, 9, .08) 25%, rgba(5, 13, 9, .82)); }
+        /* light sweep on hover */
+        &::before { content: ''; position: absolute; z-index: 2; top: -20%; bottom: -20%; left: -60%; width: 40%; pointer-events: none; transform: skewX(-18deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .28), transparent); opacity: 0; } }
+    &:hover .sc-vcard-media > img { transform: scale(1.12); }
+    &:hover .sc-vcard-media > i { color: $accent; animation: sc-vcard-spin 1.2s linear infinite; }
+    &:hover .sc-vcard-media::before { opacity: 1; animation: sc-vcard-sweep .9s ease; }
+
+    .sc-vcard-name { position: absolute; z-index: 3; left: 1.4rem; right: 5rem; bottom: 1.1rem; font-family: $display; font-weight: 800; font-size: 2.5rem; line-height: 1; text-transform: uppercase; text-shadow: 0 .2rem 1rem rgba(0, 0, 0, .65); overflow-wrap: anywhere; transition: transform .3s $ease; }
+    &:hover .sc-vcard-name { transform: translateY(-.2rem); }
+    .sc-vcard-check { position: absolute; z-index: 3; top: 1rem; right: 1rem; width: 3.2rem; height: 3.2rem; border-radius: 50%; display: grid; place-items: center; background: $accent; color: $accent-ink; font-size: 2.4rem; box-shadow: 0 .4rem 1rem rgba(0, 0, 0, .45); opacity: 0; scale: 0; }
+    &.on .sc-vcard-check { opacity: 1; animation: sc-vcard-pop .5s $ease forwards; scale: 1; }
+    .sc-vcard-count { position: absolute; z-index: 3; right: 1.2rem; bottom: 1.2rem; display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .9rem; border-radius: 99rem; background: rgba(5, 13, 9, .6); backdrop-filter: blur(.4rem); font-size: 1.25rem; font-weight: 600; i { font-size: 1.5rem; color: $accent; } }
+
+    .sc-vcard-body { display: flex; flex-direction: column; gap: .9rem; padding: 1.3rem 1.5rem 1.5rem; flex: 1; }
+    .sc-vcard-addr { display: flex; gap: .7rem; color: $soft; font-size: 1.35rem; line-height: 1.4;
+        i { flex-shrink: 0; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%; font-size: 1.6rem; color: $accent; background: rgba(200, 240, 49, .12); transition: background .25s, transform .25s $ease; }
+        span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; align-self: center; } }
+    &:hover .sc-vcard-addr i { background: rgba(200, 240, 49, .24); transform: scale(1.1); }
+    .sc-vcard-actions { display: flex; align-items: center; gap: .8rem; margin-top: auto; padding-top: .4rem; flex-wrap: wrap; }
+    .sc-map-link { transition: background .2s, transform .2s $ease; &:hover { transform: translateY(-.1rem); } }
+    .sc-vcard-edit { display: inline-flex; align-items: center; gap: .4rem; padding: .4rem 1.1rem; border-radius: 99rem; font-size: 1.25rem; font-weight: 600; color: $soft; box-shadow: inset 0 0 0 .1rem $line; transition: color .2s, box-shadow .2s, transform .2s $ease;
+        &:hover { color: $text; box-shadow: inset 0 0 0 .15rem $chalk; transform: translateY(-.1rem); } i { font-size: 1.6rem; } }
+
+    &.add { align-items: center; justify-content: center; gap: .7rem; min-height: 26rem; padding: 2rem; text-align: center; border: none;
+        background: rgba(5, 13, 9, .3); box-shadow: inset 0 0 0 .2rem rgba(236, 246, 238, .2);
+        &:hover { box-shadow: inset 0 0 0 .2rem $accent; background: rgba(200, 240, 49, .07); }
+        .sc-vcard-plus { position: relative; width: 5.8rem; height: 5.8rem; border-radius: 50%; display: grid; place-items: center; font-size: 3.2rem; color: $accent-ink; background: $accent; box-shadow: 0 .6rem 1.8rem rgba(200, 240, 49, .28); transition: rotate .4s $ease;
+            &::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 0 rgba(200, 240, 49, .5); animation: sc-vcard-ring 2.2s ease-out infinite; } }
         &:hover .sc-vcard-plus { rotate: 90deg; }
-        b { font-family: $display; font-weight: 800; font-size: 2.3rem; text-transform: uppercase; }
-        small { color: $soft; font-size: 1.3rem; max-width: 18rem; } } }
+        b { font-family: $display; font-weight: 800; font-size: 2.4rem; text-transform: uppercase; }
+        small { color: $soft; font-size: 1.3rem; max-width: 19rem; line-height: 1.35; } } }
+
+@keyframes sc-vcard-in { from { opacity: 0; transform: translateY(1.6rem) scale(.96); } }
+@keyframes sc-vcard-glow { 50% { box-shadow: inset 0 0 0 .25rem $accent, 0 1rem 3.6rem rgba(200, 240, 49, .38); } }
+@keyframes sc-vcard-float { 50% { transform: translateY(-.7rem); } }
+@keyframes sc-vcard-spin { to { transform: rotate(360deg); } }
+@keyframes sc-vcard-sweep { from { left: -60%; } to { left: 130%; } }
+@keyframes sc-vcard-pop { 0% { scale: 0; } 60% { scale: 1.25; } 100% { scale: 1; } }
+@keyframes sc-vcard-ring { to { box-shadow: 0 0 0 1.6rem rgba(200, 240, 49, 0); } }
+@media (prefers-reduced-motion: reduce) { .sc-vcard, .sc-vcard * { animation: none !important; transition: none !important; } .sc-vcard.on .sc-vcard-check { scale: 1; } }
 
 .sc-venue-dialog { width: min(48rem, 100%); }
 .sc-venue-photos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; }
@@ -1125,7 +1156,7 @@ button.sc-pick:active { transform: scale(.98); }
     .sc-mv-mini { width: 3.4rem; height: 3.4rem; border-radius: .8rem; overflow: hidden; box-shadow: inset 0 0 0 .1rem $line; img { width: 100%; height: 100%; object-fit: cover; display: block; } } }
 @media (max-width: 760px) {
     .sc-vgrid { grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .9rem; }
-    .sc-vcard .sc-vcard-media { height: 9rem; } .sc-vcard .sc-vcard-name { font-size: 1.9rem; } .sc-vcard.add { min-height: 17rem; }
+    .sc-vcard .sc-vcard-media { height: 11rem; } .sc-vcard .sc-vcard-name { font-size: 2rem; right: 4.4rem; } .sc-vcard.add { min-height: 19rem; }
     .sc-venue-photos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .sc-match-venue { flex-wrap: wrap; .sc-mv-thumb { width: 6rem; height: 6rem; } .sc-btn { width: 100%; } } }
 
@@ -1144,3 +1175,17 @@ button.sc-pick:active { transform: scale(.98); }
     .sc-cal-head h3 { font-size: 2rem; }
     .sc-cal-day { min-height: 4.4rem; padding: .5rem .3rem; }
 }
+
+/* count badge in the list switches: its own pill, clearly apart from the label */
+.sc-fund-switch button { gap: .8rem;
+    b { min-width: 2.4rem; padding: .15rem .7rem; border-radius: 99rem; text-align: center; font-size: 1.35rem; line-height: 1.2; opacity: 1; color: $text; background: rgba(236, 246, 238, .14); box-shadow: inset 0 0 0 .1rem rgba(236, 246, 238, .12); }
+    &.on b { color: $accent-ink; background: rgba(20, 32, 6, .2); box-shadow: none; } }
+
+/* venue cards: a lighter, more distinct card colour than the page and panels */
+.sc-vcard { background: linear-gradient(165deg, #2a6a45 0%, #1c4d33 52%, #143a27 100%);
+    box-shadow: inset 0 0 0 .1rem rgba(236, 246, 238, .2), inset 0 .1rem 0 rgba(255, 255, 255, .18), 0 .8rem 2.2rem rgba(0, 0, 0, .3);
+    .sc-vcard-body { background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(5, 13, 9, .12)); }
+    .sc-vcard-addr { color: #cfe3d4; }
+    .sc-vcard-edit { color: #d6e8da; box-shadow: inset 0 0 0 .1rem rgba(236, 246, 238, .28); }
+    &.on { background: linear-gradient(165deg, #4d7f1f 0%, #2c6030 52%, #1a4429 100%); }
+    &.add { background: rgba(5, 13, 9, .38); box-shadow: inset 0 0 0 .2rem rgba(236, 246, 238, .22); } }

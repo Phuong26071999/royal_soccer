@@ -316,31 +316,35 @@ const ScheduleTab = ({ state, isAdmin, onAdd, onUpdate, onRemove, onAddVenue, on
         <p className="sc-empty">Chưa có trận nào đã đá.</p>
       )}
 
-      <MonthCalendar matches={state.matches} onPickMatch={showMatch}
-        onPickEmptyDay={isAdmin ? (day) => { setForm((f) => ({ ...f, date: `${day}T19:00` })); setError(''); document.querySelector('.sc-match-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } : undefined} />
-      {isAdmin && (
-        <form className="sc-panel sc-match-form" onSubmit={submit} noValidate>
-          <h3>Tạo lịch đá</h3>
-          <div className="sc-form-grid">
-            <label><span>Ngày giờ</span><input type="datetime-local" value={form.date} onChange={(e) => { setForm({ ...form, date: e.target.value }); setError(''); }} /></label>
-            <div className="sc-span-2 sc-venues">
-              <span className="sc-venues-label">Địa điểm</span>
-              <VenuePicker venues={venues} value={form.venue} onChange={(id) => { setForm({ ...form, venue: id }); setError(''); }}
-                onAdd={() => setVenueDialog({ target: 'form' })} onEdit={(v) => setVenueDialog({ venue: v, target: 'form' })} />
-            </div>
-            <label className="sc-span-2"><span>Ghi chú (tùy chọn)</span><input value={form.note} maxLength={200} placeholder="Mang áo màu, tiền sân..." onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          </div>
-          {error && <small className="sc-error" role="alert">{error}</small>}
-          <button type="submit" className="sc-btn"><i className="bx bx-calendar-plus" aria-hidden="true"></i>Tạo trận</button>
-        </form>
-      )}
-
-      {view === 'upcoming' && upcoming.length > 1 && (
+      {view === 'upcoming' && (
         <>
-          <h3 className="sc-section-title">Các trận tiếp theo</h3>
-          <div className="sc-match-list">
-            {upcoming.slice(1).map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}
-          </div>
+          <MonthCalendar matches={state.matches} onPickMatch={showMatch}
+            onPickEmptyDay={isAdmin ? (day) => { setForm((f) => ({ ...f, date: `${day}T19:00` })); setError(''); document.querySelector('.sc-match-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); } : undefined} />
+          {isAdmin && (
+            <form className="sc-panel sc-match-form" onSubmit={submit} noValidate>
+              <h3>Tạo lịch đá</h3>
+              <div className="sc-form-grid">
+                <label><span>Ngày giờ</span><input type="datetime-local" value={form.date} onChange={(e) => { setForm({ ...form, date: e.target.value }); setError(''); }} /></label>
+                <div className="sc-span-2 sc-venues">
+                  <span className="sc-venues-label">Địa điểm</span>
+                  <VenuePicker venues={venues} value={form.venue} onChange={(id) => { setForm({ ...form, venue: id }); setError(''); }}
+                    onAdd={() => setVenueDialog({ target: 'form' })} onEdit={(v) => setVenueDialog({ venue: v, target: 'form' })} />
+                </div>
+                <label className="sc-span-2"><span>Ghi chú (tùy chọn)</span><input value={form.note} maxLength={200} placeholder="Mang áo màu, tiền sân..." onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+              </div>
+              {error && <small className="sc-error" role="alert">{error}</small>}
+              <button type="submit" className="sc-btn"><i className="bx bx-calendar-plus" aria-hidden="true"></i>Tạo trận</button>
+            </form>
+          )}
+
+          {upcoming.length > 1 && (
+            <>
+              <h3 className="sc-section-title">Các trận tiếp theo</h3>
+              <div className="sc-match-list">
+                {upcoming.slice(1).map((m) => <MatchCard key={m.id} match={m} {...cardProps} />)}
+              </div>
+            </>
+          )}
         </>
       )}
 

@@ -15,21 +15,21 @@ interface Props {
 /** Venue cards: photo (or a pitch pattern), name, address, map link. One can be selected. */
 const VenuePicker = ({ venues, value, onChange, onAdd, onEdit }: Props) => (
   <div className="sc-vgrid" role="radiogroup" aria-label="Địa điểm">
-    {venues.map((v) => {
+    {venues.map((v, idx) => {
       const selected = value === v.id;
       const cover = v.images && v.images[0];
       const extra = (v.images?.length || 0) - 1;
       return (
-        <div key={v.id} role="radio" aria-checked={selected} tabIndex={0} className={`sc-vcard${selected ? ' on' : ''}`}
+        <div key={v.id} role="radio" aria-checked={selected} tabIndex={0} className={`sc-vcard${selected ? ' on' : ''}`} style={{ '--i': idx } as React.CSSProperties}
           onClick={() => onChange(v.id)}
           onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onChange(v.id); } }}>
           <div className="sc-vcard-media">
             {cover ? <img src={cover} alt="" loading="lazy" /> : <i className="bx bx-football" aria-hidden="true"></i>}
             {extra > 0 && <span className="sc-vcard-count"><i className="bx bx-images" aria-hidden="true"></i>{extra + 1}</span>}
+            <b className="sc-vcard-name">{v.name}</b>
             <span className="sc-vcard-check" aria-hidden="true"><i className="bx bx-check"></i></span>
           </div>
           <div className="sc-vcard-body">
-            <b className="sc-vcard-name">{v.name}</b>
             {v.address && <p className="sc-vcard-addr"><i className="bx bx-map" aria-hidden="true"></i><span>{v.address}</span></p>}
             <div className="sc-vcard-actions">
               {v.mapUrl && <a className="sc-map-link" href={v.mapUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}><i className="bx bx-map-pin" aria-hidden="true"></i>Bản đồ</a>}
@@ -39,7 +39,7 @@ const VenuePicker = ({ venues, value, onChange, onAdd, onEdit }: Props) => (
         </div>
       );
     })}
-    <button type="button" className="sc-vcard add" onClick={onAdd}>
+    <button type="button" className="sc-vcard add" style={{ '--i': venues.length } as React.CSSProperties} onClick={onAdd}>
       <span className="sc-vcard-plus" aria-hidden="true"><i className="bx bx-plus"></i></span>
       <b>Sân khác</b>
       <small>Thêm tên sân, địa chỉ, bản đồ và hình ảnh</small>

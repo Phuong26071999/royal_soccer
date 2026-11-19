@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { SoccerApiError, fetchState, saveState, verifyPin } from "./api";
 import { Fund, Member, SoccerState } from "./types";
-import { currentFund, monthKey, randomId } from "./utils";
+import { currentFund, randomId } from "./utils";
 import MembersTab from "./components/MembersTab";
 import MemberDetail from "./components/MemberDetail";
 import TeamSplitTab from "./components/TeamSplitTab";
@@ -297,11 +297,6 @@ const SoccerPage = () => {
 
   const openMember = data.members.find((m) => m.id === openId) || null;
   const activeFund = currentFund(data);
-  const paidNow = ((activeFund && activeFund.payments[monthKey()]) || [])
-    .length;
-  const nextMatch = data.matches
-    .filter((m) => new Date(m.date).getTime() >= Date.now())
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
 
   return (
     <div className="sc-page">
@@ -312,30 +307,21 @@ const SoccerPage = () => {
               <SoccerBall size={34} />Đội bóng
             </h1>
           </div>
-          <dl className="sc-scoreboard">
-            <div>
-              <dt>Cầu thủ</dt>
-              <dd>{data.members.length}</dd>
-            </div>
-            <div>
-              <dt>Quỹ tháng</dt>
-              <dd>
-                {paidNow}
-                <small>/{data.members.length}</small>
-              </dd>
-            </div>
-            <div>
-              <dt>Trận tới</dt>
-              <dd>
-                {nextMatch
-                  ? new Date(nextMatch.date).toLocaleDateString("vi-VN", {
-                      day: "2-digit",
-                      month: "2-digit",
-                    })
-                  : "--"}
-              </dd>
-            </div>
-          </dl>
+          <nav className="sc-tabs" role="tablist" aria-label="Chức năng">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                className={tab === t.key ? "on" : ""}
+                onClick={() => setTab(t.key)}
+              >
+                <i className={`bx ${t.icon}`} aria-hidden="true"></i>
+                {t.label}
+              </button>
+            ))}
+          </nav>
           <div className="sc-admin">
             {saving && (
               <span className="sc-saving" aria-live="polite">
@@ -346,21 +332,6 @@ const SoccerPage = () => {
             {!writable && <span className="sc-chip">Chế độ xem</span>}
           </div>
         </div>
-        <nav className="sc-wrap sc-tabs" role="tablist" aria-label="Chức năng">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.key}
-              className={tab === t.key ? "on" : ""}
-              onClick={() => setTab(t.key)}
-            >
-              <i className={`bx ${t.icon}`} aria-hidden="true"></i>
-              {t.label}
-            </button>
-          ))}
-        </nav>
       </header>
 
       <main className="sc-wrap sc-main">

@@ -1226,3 +1226,42 @@ button.sc-tile.on:hover .sc-tile-av { box-shadow: 0 0 0 .3rem $accent, 0 1rem 2r
 @keyframes sc-tile-in { from { opacity: 0; transform: translateY(.9rem) scale(.95); } }
 @media (max-width: 760px) { .sc-roster { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .7rem; } .sc-tile { padding: 1.4rem .4rem 1rem; border-radius: 1.5rem; } }
 @media (prefers-reduced-motion: reduce) { .sc-tile { animation: none; } }
+
+/* team photo banner */
+.sc-team-photo { position: relative; display: block; width: 100%; aspect-ratio: 21 / 8; margin-bottom: 2rem; padding: 0; border-radius: $r; overflow: hidden; cursor: zoom-in; text-align: left; isolation: isolate;
+    background: #050d09; box-shadow: inset 0 0 0 .15rem rgba(236, 246, 238, .14), 0 1.2rem 3rem rgba(0, 0, 0, .35); animation: sc-photo-in .7s $ease both;
+    > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 58%; animation: sc-photo-drift 22s ease-in-out infinite alternate; }
+    .sc-team-photo-shade { position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background: linear-gradient(180deg, rgba(5, 13, 9, .05) 35%, rgba(5, 13, 9, .86)), linear-gradient(90deg, rgba(5, 13, 9, .45), transparent 55%); }
+    /* gold-ish frame lines in the corners */
+    &::before, &::after { content: ''; position: absolute; z-index: 2; width: 4.4rem; height: 4.4rem; pointer-events: none; border: .25rem solid $accent; opacity: .85; transition: width .3s $ease, height .3s $ease; }
+    &::before { top: 1.2rem; left: 1.2rem; border-right: 0; border-bottom: 0; border-top-left-radius: 1rem; }
+    &::after { right: 1.2rem; bottom: 1.2rem; border-left: 0; border-top: 0; border-bottom-right-radius: 1rem; }
+    &:hover::before, &:hover::after { width: 6.4rem; height: 6.4rem; }
+    .sc-team-photo-caption { position: absolute; z-index: 3; left: 2.6rem; bottom: 2.2rem; right: 8rem; display: flex; flex-direction: column; align-items: flex-start; gap: .8rem;
+        > b { font-family: $display; font-weight: 800; font-size: 4.4rem; line-height: 1; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 .3rem 1.6rem rgba(0, 0, 0, .7); } }
+    .sc-team-photo-tag { display: inline-flex; align-items: center; gap: .6rem; padding: .4rem 1.2rem; border-radius: 99rem; font-size: 1.35rem; font-weight: 600; color: $accent-ink; background: $accent; box-shadow: 0 .4rem 1.2rem rgba(200, 240, 49, .3);
+        i { font-size: 1.8rem; } }
+    .sc-team-photo-zoom { position: absolute; z-index: 3; right: 2.4rem; bottom: 2.2rem; width: 4rem; height: 4rem; border-radius: 50%; display: grid; place-items: center; font-size: 2.2rem; color: #fff; background: rgba(5, 13, 9, .55); backdrop-filter: blur(.4rem); box-shadow: inset 0 0 0 .1rem rgba(255, 255, 255, .3); transition: background .2s, transform .3s $ease; }
+    &:hover .sc-team-photo-zoom { background: $accent; color: $accent-ink; transform: scale(1.1); }
+    &:focus-visible { outline: .25rem solid $accent; outline-offset: .3rem; } }
+.sc-lightbox { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 2rem; background: rgba(3, 9, 6, .9); cursor: zoom-out; animation: sc-fade .2s ease;
+    > img { max-width: 100%; max-height: 100%; border-radius: 1.2rem; box-shadow: 0 2rem 6rem rgba(0, 0, 0, .6); animation: sc-pop .35s $ease; } }
+@keyframes sc-photo-in { from { opacity: 0; transform: translateY(1.2rem) scale(.98); } }
+@keyframes sc-photo-drift { from { transform: scale(1.02); } to { transform: scale(1.1) translateX(-1.2%); } }
+@media (max-width: 760px) {
+    .sc-team-photo { aspect-ratio: 4 / 3; .sc-team-photo-caption { left: 1.6rem; bottom: 1.4rem; right: 6rem; > b { font-size: 3rem; } } .sc-team-photo-zoom { right: 1.4rem; bottom: 1.4rem; width: 3.4rem; height: 3.4rem; }
+        &::before { top: .8rem; left: .8rem; } &::after { right: .8rem; bottom: .8rem; } } }
+@media (prefers-reduced-motion: reduce) { .sc-team-photo, .sc-team-photo > img { animation: none; } }
+
+/* header: title on the left, the tabs where the counters used to be */
+.sc-header-row { align-items: stretch; gap: 2rem; padding-top: 0; padding-bottom: 0; }
+.sc-header-row .sc-title { flex: 0 0 auto; align-self: center; padding: 1.2rem 0; }
+.sc-header-row .sc-tabs { flex: 1 1 auto; min-width: 0; justify-content: flex-end; align-items: stretch; margin-left: auto; button { padding-top: 0; padding-bottom: 0; } }
+.sc-header-row .sc-admin { align-self: center; }
+@media (max-width: 760px) {
+    .sc-header-row { flex-wrap: wrap; row-gap: 0; gap: 0 1rem; }
+    .sc-header-row .sc-title { flex: 1 1 auto; padding: 1rem 0 .4rem; }
+    .sc-header-row .sc-admin { padding: 1rem 0 .4rem; }
+    .sc-header-row .sc-tabs { order: 3; flex: 1 0 100%; justify-content: flex-start; button { padding: 1rem 1.2rem 1.1rem; } }
+}

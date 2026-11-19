@@ -6,6 +6,7 @@ import PlayerCard from './PlayerCard';
 import CardStylePicker from './CardStylePicker';
 import { useCardStyle } from '../cardStyle';
 import PodiumFigure from './PodiumFigure';
+import TeamPhoto from './TeamPhoto';
 
 interface Props {
   state: SoccerState;
@@ -50,6 +51,7 @@ const MembersTab = ({ state, isAdmin, onOpen, onAdd }: Props) => {
 
   return (
     <section aria-label="Thành viên">
+      <TeamPhoto count={state.members.length} />
       {topScorers.length > 0 && (
         <div className="sc-scorers">
           <h3><i className="bx bx-trophy" aria-hidden="true"></i> Vua phá lưới</h3>

@@ -7,6 +7,7 @@ import MemberDetail from "./components/MemberDetail";
 import TeamSplitTab from "./components/TeamSplitTab";
 import FundTab from "./components/FundTab";
 import ScheduleTab from "./components/ScheduleTab";
+import VideosTab from "./components/VideosTab";
 import SoccerBall from "./components/SoccerBall";
 import { startSpinningFavicon } from "./spinFavicon";
 import "@fontsource/barlow/400";
@@ -17,12 +18,13 @@ import "@fontsource/barlow-condensed/700";
 import "@fontsource/barlow-condensed/800";
 import "./soccer.scss";
 
-type Tab = "members" | "split" | "fund" | "schedule";
+type Tab = "members" | "split" | "fund" | "schedule" | "videos";
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: "members", label: "Thành viên", icon: "bx-group" },
   { key: "split", label: "Chia đội", icon: "bx-shuffle" },
   { key: "fund", label: "Quỹ", icon: "bx-wallet" },
   { key: "schedule", label: "Lịch đá", icon: "bx-calendar" },
+  { key: "videos", label: "Video", icon: "bx-video" },
 ];
 // The PIN lives in memory only: a reload (or closing the tab) locks the fund again.
 
@@ -82,6 +84,11 @@ const SoccerPage = () => {
     document.title = "Giấc Mơ Sân Cỏ";
     load();
   }, [load]);
+
+  // Keep the selected tab in view when the tab bar scrolls (phones).
+  useEffect(() => {
+    document.querySelector('.sc-tabs button.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [tab]);
 
   // The tab icon is the ball, spinning.
   useEffect(() => startSpinningFavicon(), []);
@@ -438,6 +445,23 @@ const SoccerPage = () => {
             onAddVenue={(v) => update((s) => ({ ...s, venues: [...s.venues, v] }))}
             onUpdateVenue={(v) => update((s) => ({ ...s, venues: s.venues.map((x) => (x.id === v.id ? v : x)) }))}
             onRemoveVenue={(id) => update((s) => ({ ...s, venues: s.venues.filter((x) => x.id !== id) }))}
+          />
+        )}
+        {tab === "videos" && (
+          <VideosTab
+            state={data}
+            canEdit={canEdit}
+            onAdd={(v) => {
+              update((s) => ({ ...s, videos: [...s.videos, v] }));
+              notify("Đã thêm video.");
+            }}
+            onUpdate={(v) =>
+              update((s) => ({ ...s, videos: s.videos.map((x) => (x.id === v.id ? v : x)) }))
+            }
+            onRemove={(id) => {
+              update((s) => ({ ...s, videos: s.videos.filter((x) => x.id !== id) }));
+              notify("Đã xóa video.");
+            }}
           />
         )}
       </main>

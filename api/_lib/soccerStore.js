@@ -17,7 +17,7 @@ const seed = require('../../src/soccer/seed.json');
 const KEY = 'soccer:state';
 const LOCAL_FILE = path.join(__dirname, '..', '..', '.data', 'soccer.json');
 
-const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4, costs: 20, funds: 30, venues: 30, venueImages: 4 };
+const LIMITS = { members: 40, months: 36, expenses: 300, matches: 200, teams: 4, costs: 20, funds: 30, venues: 30, venueImages: 4, videos: 200, videoLinks: 20 };
 
 class ValidationError extends Error {}
 
@@ -55,6 +55,32 @@ function httpsUrl(v, field) {
   const s = str(v, 800, field);
   if (!/^https:\/\//i.test(s)) fail(`${field} must be an https URL`);
   return s;
+}
+
+const YT_HOSTS = new Set(['youtube.com', 'www.youtube.com', 'm.youtube.com', 'youtu.be', 'www.youtu.be', 'youtube-nocookie.com', 'www.youtube-nocookie.com']);
+
+function youtubeUrl(v, field) {
+  const s = httpsUrl(v, field);
+  let host = '';
+  try { host = new URL(s).hostname.toLowerCase(); } catch (err) { fail(`${field} is not a valid URL`); }
+  if (!YT_HOSTS.has(host)) fail(`${field} must be a YouTube link`);
+  return s;
+}
+
+function parseVideo(v, i) {
+  const at = `videos[${i}]`;
+  if (!isObj(v)) fail(`${at} is invalid`);
+  const date = str(v.date, 10, `${at}.date`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail(`${at}.date is invalid`);
+  if (!Array.isArray(v.links) || v.links.length > LIMITS.videoLinks) fail(`${at}.links is invalid`);
+  return {
+    id: id(v.id, `${at}.id`),
+    title: str(v.title, 120, `${at}.title`),
+    date,
+    ...(v.venueId ? { venueId: id(v.venueId, `${at}.venueId`) } : {}),
+    ...(v.venueName ? { venueName: str(v.venueName, 120, `${at}.venueName`, { optional: true }) } : {}),
+    links: v.links.map((l, k) => youtubeUrl(l, `${at}.links[${k}]`)),
+  };
 }
 
 function matchAttendees(v, i, knownId) {
@@ -176,7 +202,7 @@ function parseFund(f, i, knownId) {
 /** Returns a clean copy of the client's state or throws ValidationError. */
 function validateState(input) {
   if (!isObj(input)) fail('state must be an object');
-  const { members, funds, matches, venues = [] } = migrateFunds(input);
+  const { members, funds, matches, venues = [], videos = [] } = migrateFunds(input);
 
   if (!Array.isArray(members) || members.length > LIMITS.members) fail('members must be an array');
   const memberIds = new Set();
@@ -213,6 +239,9 @@ function validateState(input) {
 
   if (!Array.isArray(venues) || venues.length > LIMITS.venues) fail('venues must be an array');
   const cleanVenues = venues.map((v, i) => parseVenue(v, i));
+  if (!Array.isArray(videos) || videos.length > LIMITS.videos) fail('videos must be an array');
+  const cleanVideos = videos.map((v, i) => parseVideo(v, i));
+  if (new Set(cleanVideos.map((v) => v.id)).size !== cleanVideos.length) fail('videos have duplicate ids');
   if (new Set(cleanVenues.map((v) => v.id)).size !== cleanVenues.length) fail('venues have duplicate ids');
 
   if (!Array.isArray(matches) || matches.length > LIMITS.matches) fail('matches must be an array');
@@ -243,6 +272,7 @@ function validateState(input) {
     members: cleanMembers,
     funds: cleanFunds,
     venues: cleanVenues,
+    videos: cleanVideos,
     matches: cleanMatches,
   };
 }
@@ -278,6 +308,7 @@ async function loadState(env = process.env) {
   state.members = (state.members || []).map(({ role, ...m }) => ({ ...m, number: m.number ?? null }));
   if (!Array.isArray(state.funds)) state.funds = [];
   if (!Array.isArray(state.venues)) state.venues = [];
+  if (!Array.isArray(state.videos)) state.videos = [];
   return state;
 }
 

@@ -1265,3 +1265,65 @@ button.sc-tile.on:hover .sc-tile-av { box-shadow: 0 0 0 .3rem $accent, 0 1rem 2r
     .sc-header-row .sc-admin { padding: 1rem 0 .4rem; }
     .sc-header-row .sc-tabs { order: 3; flex: 1 0 100%; justify-content: flex-start; button { padding: 1rem 1.2rem 1.1rem; } }
 }
+
+/* videos tab */
+.sc-vid-title { min-width: 0; h2 { font-family: $display; font-weight: 800; font-size: 2.8rem; line-height: 1.05; text-transform: uppercase; } p { margin-top: .3rem; font-size: 1.35rem; } }
+.sc-vid-day { margin-bottom: 2.4rem; }
+.sc-vid-day-head { display: flex; align-items: center; gap: .8rem; margin: 0 0 1rem; font-family: $display; font-weight: 700; font-size: 2rem; text-transform: uppercase; color: $accent; i { font-size: 2.2rem; } &::after { content: ''; flex: 1; height: .1rem; background: linear-gradient(90deg, rgba(200, 240, 49, .4), transparent); } }
+.sc-vid-list { display: flex; flex-direction: column; gap: 1.2rem; }
+.sc-vid-card { display: flex; flex-direction: column; gap: 1.2rem; padding: 1.6rem 1.8rem; border-radius: $r; background: linear-gradient(165deg, #1d4631, $surface); box-shadow: inset 0 0 0 .1rem rgba(236, 246, 238, .16), 0 .8rem 2rem rgba(0, 0, 0, .22); animation: sc-vcard-in .45s $ease both;
+    > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; } }
+.sc-vid-card-title { min-width: 0; h4 { font-family: $display; font-weight: 800; font-size: 2.4rem; line-height: 1.1; overflow-wrap: anywhere; }
+    p { display: inline-flex; align-items: center; gap: .5rem; margin-top: .5rem; padding: .25rem 1rem .25rem .7rem; border-radius: 99rem; font-size: 1.3rem; background: rgba(5, 13, 9, .4); i { color: $accent; font-size: 1.7rem; } } }
+.sc-vid-links { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: 1rem;
+    li { position: relative; }
+    a { display: flex; flex-direction: column; gap: .7rem; padding: .7rem .7rem 1rem; border-radius: 1.4rem; background: rgba(5, 13, 9, .38); box-shadow: inset 0 0 0 .1rem $line; transition: transform .25s $ease, box-shadow .2s; &:hover { transform: translateY(-.3rem); box-shadow: inset 0 0 0 .15rem $accent; } }
+    .sc-vid-meta { display: flex; flex-direction: column; padding: 0 .4rem; b { font-weight: 700; font-size: 1.45rem; } small { color: $soft; font-size: 1.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } } }
+.sc-vid-thumb { position: relative; display: grid; place-items: center; aspect-ratio: 16 / 9; border-radius: 1rem; overflow: hidden; background: linear-gradient(135deg, #3a0d0d, #14201a);
+    > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .5s $ease; }
+    > i { font-size: 4rem; color: #ff4b4b; }
+    .sc-vid-play { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0, 0, 0, .18); transition: background .2s;
+        i { width: 4.6rem; height: 4.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 3.2rem; color: #fff; background: rgba(255, 0, 0, .88); box-shadow: 0 .4rem 1.4rem rgba(0, 0, 0, .5); padding-left: .2rem; transition: transform .25s $ease; } } }
+a:hover .sc-vid-thumb > img { transform: scale(1.08); }
+a:hover .sc-vid-play i { transform: scale(1.15); }
+.sc-vid-remove { position: absolute; top: 1.2rem; right: 1.2rem; z-index: 2; width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; font-size: 1.9rem; color: #fff; background: rgba(5, 13, 9, .75); opacity: 0; transition: opacity .2s, background .2s; &:hover { background: $danger; } }
+.sc-vid-links li:hover .sc-vid-remove, .sc-vid-remove:focus-visible { opacity: 1; }
+@media (hover: none) { .sc-vid-remove { opacity: 1; } }
+.sc-link-adder { display: flex; flex-direction: column; gap: .5rem;
+    .sc-link-adder-row { display: flex; gap: .8rem; input { flex: 1; min-width: 0; } .sc-btn { flex-shrink: 0; } }
+    &.compact input { font-size: 1.35rem; padding-top: .7rem; padding-bottom: .7rem; } }
+.sc-video-dialog { width: min(52rem, 100%);
+    .sc-field { margin-top: 1.2rem; input, select { font-size: 1.55rem; letter-spacing: 0; width: 100%; } } }
+.sc-video-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.sc-vid-links-edit { list-style: none; display: flex; flex-direction: column; gap: .6rem; margin-top: .8rem; max-height: 22rem; overflow-y: auto;
+    li { display: flex; align-items: center; gap: 1rem; padding: .5rem .8rem .5rem .5rem; border-radius: 1rem; background: rgba(5, 13, 9, .4);
+        .sc-vid-thumb { width: 9rem; flex-shrink: 0; .sc-vid-play i { width: 2.6rem; height: 2.6rem; font-size: 2rem; } }
+        a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 1.3rem; color: $soft; &:hover { color: $accent; } } } }
+@media (max-width: 760px) {
+    .sc-video-grid2 { grid-template-columns: 1fr; }
+    .sc-vid-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+    .sc-vid-card { padding: 1.3rem 1.2rem; } .sc-vid-card-title h4 { font-size: 2rem; }
+    .sc-link-adder .sc-link-adder-row { flex-wrap: wrap; .sc-btn { width: 100%; } } }
+@media (prefers-reduced-motion: reduce) { .sc-vid-card { animation: none; } }
+.sc-vid-links a { color: $text; }
+.sc-vid-links .sc-vid-meta b { color: $text; }
+
+/* five tabs on a phone: tighter buttons so they all fit */
+@media (max-width: 760px) {
+    .sc-header-row .sc-tabs { justify-content: space-between; button { padding: 1rem .7rem 1.1rem; font-size: 1.45rem; gap: .35rem; i { font-size: 1.7rem; } &::after { left: .6rem; right: .6rem; } } }
+}
+
+/* video dialog: bigger, and no horizontal scroll (the small-dialog full-width button rule was squeezing the link input) */
+.sc-video-dialog { width: min(66rem, 100%); max-height: calc(100dvh - 3rem); overflow-x: hidden; padding: 2.6rem 2.8rem 2.4rem;
+    h2 { font-size: 3.2rem; margin-bottom: 1.2rem; }
+    .sc-link-adder .sc-btn { width: auto; margin-top: 0; flex-shrink: 0; white-space: nowrap; }
+    .sc-link-adder-row { min-width: 0; input { flex: 1 1 0; width: 0; min-width: 0; } }
+    .sc-field { min-width: 0; }
+    .sc-field input, .sc-field select { box-sizing: border-box; max-width: 100%; }
+    .sc-vid-links-edit { overflow-x: hidden; } }
+@media (max-width: 760px) {
+    .sc-video-dialog { padding: 2rem 1.6rem 1.8rem; h2 { font-size: 2.6rem; }
+        .sc-link-adder-row { flex-direction: column; input { width: 100%; flex: none; } .sc-btn { width: 100%; } } }
+}
+.sc-dialog.small.sc-video-dialog { width: min(66rem, 100%); max-height: calc(100dvh - 3rem); }
+.sc-dialog.small.sc-venue-dialog { width: min(52rem, 100%); }

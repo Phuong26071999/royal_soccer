@@ -295,3 +295,25 @@ export function nextMoney(prev: number, text: string): number {
   }
   return next > MAX_MONEY ? prev : next;
 }
+
+/** The 11-character video id of a YouTube link (watch, youtu.be, shorts, embed, live), or '' when it is not one. */
+export function youtubeId(input: string): string {
+  let url: URL;
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return '';
+  }
+  if (url.protocol !== 'https:') return '';
+  const host = url.hostname.replace(/^www\.|^m\./, '');
+  let id = '';
+  if (host === 'youtu.be') id = url.pathname.split('/')[1] || '';
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    if (url.pathname === '/watch') id = url.searchParams.get('v') || '';
+    else {
+      const m = url.pathname.match(/^\/(?:shorts|embed|live|v)\/([^/?#]+)/);
+      id = m ? m[1] : '';
+    }
+  }
+  return /^[A-Za-z0-9_-]{11}$/.test(id) ? id : '';
+}

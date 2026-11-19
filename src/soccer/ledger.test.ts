@@ -13,6 +13,7 @@ const state = (matches: Match[], payments: Record<string, string[]> = {}, funds:
   funds,
   matches,
   venues: [],
+  videos: [],
 });
 
 describe('match attendance and cost split', () => {

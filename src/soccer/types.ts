@@ -84,6 +84,8 @@ export interface SoccerState {
   funds: Fund[];
   /** Pitches the group added itself (the built-in ones live in venues.ts). */
   venues: Venue[];
+  /** YouTube links of the sessions, saved by day. */
+  videos: VideoItem[];
   matches: Match[];
 }
 
@@ -95,4 +97,16 @@ export interface Venue {
   mapUrl: string;
   /** Photos of the pitch: uploaded (/api/soccer-avatar?id=venue-...) or https URLs. Up to 4. */
   images?: string[];
+}
+
+export interface VideoItem {
+  id: string;
+  title: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** Venue it was played at (id of a preset or custom venue) and its name at the time. */
+  venueId?: string;
+  venueName?: string;
+  /** https YouTube links. */
+  links: string[];
 }

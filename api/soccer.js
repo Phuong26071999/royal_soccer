@@ -18,6 +18,8 @@ const { RequestError, send, getClientIp, readBody, assertJsonRequest } = require
 const { hitLimit, redisEnvNames } = require('./_lib/rateLimit');
 const { ValidationError, validateState, loadState, saveState, getBackend } = require('./_lib/soccerStore');
 
+const { notifyMatchChanges } = require('./_lib/zaloNotify');
+
 const MAX_BODY_BYTES = 128 * 1024;
 const PIN_LIMIT = { limit: 5, windowSeconds: 15 * 60 };
 // Open edits are unauthenticated, so cap them per client to stop spam.
@@ -112,6 +114,8 @@ async function handler(req, res) {
     }
     const next = { version: current.version + 1, updatedAt: new Date().toISOString(), ...clean };
     await saveState(next);
+    // Saved for real: announce created/deleted matches. Never throws, never blocks the save result.
+    await notifyMatchChanges(current.matches, next.matches);
     return send(res, 200, { state: next });
   } catch (err) {
     if (err instanceof RequestError) {

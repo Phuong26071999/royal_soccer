@@ -7,6 +7,7 @@ import { allVenues, isPreset } from '../venues';
 import VenuePicker from './VenuePicker';
 import VenueDialog from './VenueDialog';
 import MonthCalendar from './MonthCalendar';
+import { sendReminder } from '../api';
 
 interface Props {
   state: SoccerState;
@@ -171,11 +172,21 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, onPickVenue, fea
   onUpdate: (m: Match) => void; onRemove: (id: string) => void; onPickVenue: (match: Match) => void;
 }) => {
   const [editing, setEditing] = useState(false);
+  const [remind, setRemind] = useState<{ status: 'idle' | 'sending' | 'ok' | 'error'; text?: string }>({ status: 'idle' });
   const venue = allVenues(state).find((v) => v.id === match.venueId);
   const photos = (venue && venue.images) || [];
   const mapUrl = match.mapUrl || (venue && venue.mapUrl) || '';
   const [score, setScore] = useState(match.score);
   const byId = new Map(state.members.map((m) => [m.id, m]));
+  const remindNow = async () => {
+    setRemind({ status: 'sending' });
+    try {
+      await sendReminder(match.id);
+      setRemind({ status: 'ok', text: 'Đã gửi nhắc hẹn vào nhóm Zalo.' });
+    } catch (e) {
+      setRemind({ status: 'error', text: e instanceof Error ? e.message : 'Không gửi được.' });
+    }
+  };
   const d = new Date(match.date);
   const valid = !Number.isNaN(d.getTime());
   return (
@@ -233,6 +244,12 @@ const MatchCard = ({ match, state, isAdmin, onUpdate, onRemove, onPickVenue, fea
       <AttendancePanel match={match} state={state} isAdmin={isAdmin} onUpdate={onUpdate} />
       {isAdmin && (
         <div className="sc-match-actions">
+          {isUpcoming(match) && (
+            <button type="button" className="sc-btn small sc-remind" disabled={remind.status === 'sending'} onClick={remindNow}>
+              <i className={`bx ${remind.status === 'sending' ? 'bx-loader-alt bx-spin' : 'bx-bell-ring'}`} aria-hidden="true"></i>{remind.status === 'sending' ? 'Đang gửi…' : 'Nhắc hẹn đá'}
+            </button>
+          )}
+          {remind.text && <small className={remind.status === 'ok' ? 'sc-remind-ok' : 'sc-error'} role="status">{remind.text}</small>}
           <button type="button" className="sc-btn ghost small" onClick={() => setEditing(true)}><i className="bx bx-edit-alt" aria-hidden="true"></i>Sửa trận</button>
           {match.teams.length > 0 && <button type="button" className="sc-btn ghost small" onClick={() => onUpdate({ ...match, teams: [] })}>Xóa đội hình</button>}
           <button type="button" className="sc-link-danger" onClick={() => window.confirm('Xóa trận này?') && onRemove(match.id)}>

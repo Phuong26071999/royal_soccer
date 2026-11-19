@@ -57,3 +57,26 @@ describe('zalo match notifications (Zalo API mocked)', () => {
     expect(JSON.stringify(console.error.mock.calls)).not.toContain('SECRET-TOKEN');
   });
 });
+
+describe('reminder', () => {
+  const { buildReminder, sendReminder, daysUntil } = require('../../api/_lib/zaloNotify');
+  const now = Date.UTC(2026, 10, 19, 5, 0); // 19/11/2026 12:00 in Vietnam
+  it('says how far away the match is and lists who joined', () => {
+    expect(daysUntil('2026-11-20T19:30', now)).toBe(1);
+    const text = buildReminder({ id: 'x', date: '2026-11-20T19:30', location: 'Sân A', attendees: ['a', 'b'] }, [{ id: 'a', name: 'An' }, { id: 'b', name: 'Bình' }], now);
+    expect(text).toContain('NHẮC HẸN');
+    expect(text).toContain('NGÀY MAI');
+    expect(text).toContain('An, Bình');
+    expect(text).not.toContain('x\n');
+  });
+  it('reports not_configured / failed / sent without throwing', async () => {
+    const env = process.env;
+    process.env = { ...env, ZALO_BOT_TOKEN: '', ZALO_GROUP_CHAT_ID: '' };
+    expect(await sendReminder({ id: 'x', date: '2026-11-20T19:30' }, [], jest.fn())).toBe('not_configured');
+    process.env = { ...env, ZALO_BOT_TOKEN: 't', ZALO_GROUP_CHAT_ID: 'g' };
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await sendReminder({ id: 'x', date: '2026-11-20T19:30' }, [], jest.fn().mockResolvedValue({ ok: false, status: 401 }))).toBe('failed');
+    expect(await sendReminder({ id: 'x', date: '2026-11-20T19:30' }, [], jest.fn().mockResolvedValue({ ok: true }))).toBe('sent');
+    process.env = env;
+  });
+});

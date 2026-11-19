@@ -18,11 +18,14 @@ const { RequestError, send, getClientIp, readBody, assertJsonRequest } = require
 const { hitLimit, redisEnvNames } = require('./_lib/rateLimit');
 const { ValidationError, validateState, loadState, saveState, getBackend } = require('./_lib/soccerStore');
 
-const { notifyMatchChanges } = require('./_lib/zaloNotify');
+const { notifyMatchChanges, sendReminder } = require('./_lib/zaloNotify');
 
 const MAX_BODY_BYTES = 128 * 1024;
 const PIN_LIMIT = { limit: 5, windowSeconds: 15 * 60 };
 // Open edits are unauthenticated, so cap them per client to stop spam.
+// One Zalo reminder per match per window, and a per-client cap, so the button can't spam the group.
+const REMIND_MATCH_LIMIT = { limit: 1, windowSeconds: 10 * 60 };
+const REMIND_CLIENT_LIMIT = { limit: 10, windowSeconds: 60 * 60 };
 const WRITE_LIMIT = { limit: 120, windowSeconds: 10 * 60 };
 
 const MESSAGES = {
@@ -36,6 +39,10 @@ const MESSAGES = {
   fund_locked: 'Fund changes need the admin PIN.',
   rate_limited: 'Too many changes. Please wait a moment.',
   wrong_pin: 'Wrong PIN.',
+  not_found: 'Match not found.',
+  zalo_not_configured: 'Zalo notifications are not set up.',
+  zalo_failed: 'Could not send the Zalo message.',
+  remind_cooldown: 'A reminder for this match was just sent.',
   pin_locked: 'Too many wrong PINs. Try again later.',
   conflict: 'Someone else saved changes first. The latest data has been loaded.',
   storage_error: 'Could not reach the database. Please try again.',
@@ -95,6 +102,22 @@ async function handler(req, res) {
     if (!body || typeof body !== 'object') throw new RequestError(400, 'invalid_request');
 
     if (req.method === 'POST') {
+      if (body.action === 'remind') {
+        if (!getBackend()) throw new RequestError(403, 'read_only');
+        const matchId = typeof body.matchId === 'string' ? body.matchId.slice(0, 80) : '';
+        if (!matchId) throw new RequestError(400, 'invalid_request');
+        const state = await loadState();
+        const match = state.matches.find((m) => m.id === matchId);
+        if (!match) throw new RequestError(404, 'not_found');
+        const client = await hitLimit('soccer-remind-ip', getClientIp(req), REMIND_CLIENT_LIMIT);
+        if (!client.allowed) throw Object.assign(new RequestError(429, 'rate_limited'), { retryAfter: client.retryAfter });
+        const once = await hitLimit('soccer-remind', matchId, REMIND_MATCH_LIMIT);
+        if (!once.allowed) throw Object.assign(new RequestError(429, 'remind_cooldown'), { retryAfter: once.retryAfter });
+        const result = await sendReminder(match, state.members);
+        if (result === 'not_configured') throw new RequestError(503, 'zalo_not_configured');
+        if (result === 'failed') throw new RequestError(502, 'zalo_failed');
+        return send(res, 200, { ok: true });
+      }
       if (body.action !== 'verify') throw new RequestError(400, 'invalid_request');
       await requireAdmin(req);
       return send(res, 200, { ok: true });

@@ -96,4 +96,43 @@ async function notifyMatchChanges(before, after, fetchImpl = globalThis.fetch) {
   }
 }
 
-module.exports = { notifyMatchChanges, diffMatches, buildMessage, formatWhen };
+/** Whole days from today (Vietnam time, UTC+7) to the match day; negative when it is over. */
+function daysUntil(matchDate, now = Date.now()) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(matchDate || ''));
+  if (!m) return null;
+  const today = new Date(now + 7 * 3600 * 1000);
+  const a = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - a) / 86400000);
+}
+
+function buildReminder(match, members = [], now = Date.now()) {
+  const { date, time } = formatWhen(match.date);
+  const left = daysUntil(match.date, now);
+  const when = left === 0 ? 'HÔM NAY' : left === 1 ? 'NGÀY MAI' : left > 1 ? `CÒN ${left} NGÀY` : '';
+  const names = (match.attendees || []).map((id) => (members.find((x) => x.id === id) || {}).name).filter(Boolean);
+  return [
+    `⏰⚽ NHẮC HẸN ĐÁ BÓNG${when ? ` — ${when}` : ''}`,
+    '━━━━━━━━━━━━━━',
+    `📅 ${date}${time ? `  •  🕘 ${time}` : ''}`,
+    match.location ? `🏟️ ${match.location}` : null,
+    match.address ? `📍 ${match.address}` : null,
+    match.mapUrl ? `🗺️ ${match.mapUrl}` : null,
+    match.note ? `📝 ${match.note}` : null,
+    names.length ? `👥 Đã điểm danh (${names.length}): ${names.join(', ')}` : null,
+    '━━━━━━━━━━━━━━',
+    '🔔 Anh em sắp xếp thời gian, đến đúng giờ nhé!',
+  ].filter((line) => line !== null).join('\n').slice(0, 1800);
+}
+
+/** Sends a reminder for one stored match. Resolves to 'sent' | 'not_configured' | 'failed'. Never throws. */
+async function sendReminder(match, members, fetchImpl = globalThis.fetch) {
+  if (!enabled() || typeof fetchImpl !== 'function') return 'not_configured';
+  try {
+    return (await sendText(buildReminder(match, members), fetchImpl)) ? 'sent' : 'failed';
+  } catch (err) {
+    console.error('[zalo] reminder failed:', err && err.name === 'AbortError' ? 'timeout' : 'network error');
+    return 'failed';
+  }
+}
+
+module.exports = { notifyMatchChanges, diffMatches, buildMessage, formatWhen, buildReminder, sendReminder, daysUntil };

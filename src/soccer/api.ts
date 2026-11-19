@@ -5,6 +5,10 @@ const ENDPOINT = '/api/soccer';
 // Server error codes shown in Vietnamese (the API itself answers in English).
 const MESSAGES: Record<string, string> = {
   wrong_pin: 'Sai mã PIN.',
+  not_found: 'Không tìm thấy trận này (có thể đã bị xóa).',
+  zalo_not_configured: 'Chưa cấu hình Zalo trên máy chủ.',
+  zalo_failed: 'Không gửi được tin Zalo. Thử lại sau.',
+  remind_cooldown: 'Vừa nhắc hẹn trận này rồi. Đợi ít phút nữa nhé.',
   pin_locked: 'Nhập sai PIN quá nhiều lần. Thử lại sau 15 phút.',
   read_only: 'Trang này chưa bật chức năng chỉnh sửa.',
   fund_locked: 'Cần mở khóa quỹ bằng mã PIN để sửa phần quỹ.',
@@ -89,3 +93,6 @@ export async function saveState(state: SoccerState, version: number, pin: string
   const data = await request<{ state: SoccerState }>('PUT', { version, state: { members, funds, matches, venues, videos } }, pin);
   return data.state;
 }
+
+/** Asks the server to post a reminder for this match to the Zalo group. */
+export const sendReminder = (matchId: string) => request<{ ok: true }>('POST', { action: 'remind', matchId });

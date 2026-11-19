@@ -32,16 +32,15 @@ function buildMessage(kind, match) {
   const { date, time } = formatWhen(match.date);
   const created = kind === 'created';
   return [
-    created ? '🟢 LỊCH ĐÁ MỚI' : '🔴 ĐÃ XÓA LỊCH ĐÁ',
-    '',
-    `📅 Ngày: ${date}`,
-    time ? `🕘 Giờ: ${time}` : null,
-    match.location ? `📍 Sân: ${match.location}` : null,
-    match.address ? `🏠 Địa chỉ: ${match.address}` : null,
-    match.note ? `📝 Ghi chú: ${match.note}` : null,
-    `🆔 Mã trận: ${match.id}`,
-    '',
-    created ? '✅ Trạng thái: Đã tạo thành công' : '❌ Trạng thái: Đã xóa thành công',
+    created ? '⚽🟢 LỊCH ĐÁ MỚI' : '⚽🔴 ĐÃ HỦY LỊCH ĐÁ',
+    '━━━━━━━━━━━━━━',
+    `📅 ${date}${time ? `  •  🕘 ${time}` : ''}`,
+    match.location ? `🏟️ ${match.location}` : null,
+    match.address ? `📍 ${match.address}` : null,
+    match.mapUrl ? `🗺️ ${match.mapUrl}` : null,
+    match.note ? `📝 ${match.note}` : null,
+    '━━━━━━━━━━━━━━',
+    created ? '✅ Đã tạo thành công — anh em nhớ điểm danh nhé!' : '❌ Trận này đã bị xóa khỏi lịch.',
   ].filter((line) => line !== null).join('\n');
 }
 

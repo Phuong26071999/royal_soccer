@@ -16,6 +16,7 @@ describe('zalo match notifications (Zalo API mocked)', () => {
   it('formats the message from real data', () => {
     const text = buildMessage('created', m('m1', { location: 'Hoàng Kim' }));
     expect(text).toContain('LỊCH ĐÁ MỚI');
+    expect(text).not.toContain('m1');
     expect(text).toContain('20/11/2026');
     expect(text).toContain('19:30');
     expect(text).toContain('Hoàng Kim');
@@ -32,7 +33,7 @@ describe('zalo match notifications (Zalo API mocked)', () => {
   it('sends a delete message', async () => {
     const fetchMock = ok();
     await notifyMatchChanges([m('a')], [], fetchMock);
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain('ĐÃ XÓA');
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).text).toContain('ĐÃ HỦY');
   });
 
   it('sends nothing when nothing was created or deleted (duplicate / replayed save)', async () => {

@@ -1,4 +1,4 @@
-const { normalize, replyFor, isMentioned } = require('../../api/_lib/zaloBot');
+const { normalize, replyFor, isMentioned, isBotMentioned, replyForMessage } = require('../../api/_lib/zaloBot');
 const webhook = require('../../api/zalo-webhook');
 
 const evt = (text, over = {}) => ({
@@ -32,7 +32,17 @@ describe('zalo bot keywords', () => {
     expect(replyFor('@Bot David Truong WEBSITE')).toContain('https://site.test');
     expect(replyFor('@Bot David Truong liên hệ')).toContain('0900 000 000');
     expect(replyFor('@Bot David Truong')).toContain('CÁC LỆNH');
-    expect(replyFor('hey @Bot David Truong xyz')).toContain('chưa hiểu');
+    expect(replyFor('hey @Bot David Truong kể chuyện vui')).toMatch(/cloud|lịch hẹn|chuyện cười/);
+    expect(replyFor('@Bot David Truong cảm ơn')).toBeTruthy();
+    expect(replyFor('@Bot David Truong hôm nay thứ mấy')).toContain('Hôm nay là');
+  });
+
+  it('uses mention metadata when Zalo sends it, text only as fallback', () => {
+    process.env.ZALO_BOT_ID = 'bot-1';
+    expect(isBotMentioned({ text: '@Bot David Truong help' })).toBe(true);
+    expect(isBotMentioned({ text: 'help', mentions: [{ id: 'bot-1' }] })).toBe(true);
+    expect(isBotMentioned({ text: '@Bot David Truong help', mentions: [{ id: 'someone-else', name: 'An' }] })).toBe(false);
+    expect(replyForMessage({ text: 'hello' })).toBeNull();
   });
 
   it('webhook: replies to the same chat for a mention, ignores everything else', async () => {

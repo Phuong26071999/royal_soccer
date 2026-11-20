@@ -21,7 +21,7 @@ const crypto = require('crypto');
 const { RequestError, send, readBody } = require('./_lib/http');
 const { hitLimit } = require('./_lib/rateLimit');
 const { sendText } = require('./_lib/zaloNotify');
-const { replyFor } = require('./_lib/zaloBot');
+const { replyForMessage } = require('./_lib/zaloBot');
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEDUPE = { limit: 1, windowSeconds: 60 * 60 };
@@ -52,7 +52,7 @@ async function handleEvent(event, deps = {}) {
   const from = message.from || {};
   if (from.is_bot === true || (botId && str(from.id) === botId)) return null;
 
-  const reply = replyFor(text);
+  const reply = replyForMessage(message);
   if (!reply) return null;
 
   // Only now burn the dedupe slot, so ignored messages cost nothing.

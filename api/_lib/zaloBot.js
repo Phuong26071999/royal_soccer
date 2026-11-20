@@ -52,8 +52,6 @@ const COMMANDS = {
   },
 };
 
-const FALLBACK = () => `🤔 Mình chưa hiểu lệnh này. Gõ @${botName()} help để xem các lệnh.`;
-
 /** True when the message addresses the bot: contains "@<bot name>" (accents/case/spacing ignored). */
 function isMentioned(text) {
   const name = normalize(botName());
@@ -79,13 +77,46 @@ function stripMention(text) {
   return `${str.slice(0, at)} ${str.slice(i)}`;
 }
 
-/** Reply text for a message that mentions the bot, or null when the bot should stay silent. */
-function replyFor(text) {
-  if (!isMentioned(text)) return null;
-  const command = normalize(stripMention(text));
-  if (!command) return COMMANDS.help.reply();
-  const hit = Object.keys(COMMANDS).find((key) => key === command || COMMANDS[key].aliases.includes(command));
-  return hit ? COMMANDS[hit].reply() : FALLBACK();
+/**
+ * Is the bot mentioned? Zalo's docs do not describe mention metadata, so this is defensive:
+ *  1. If the message carries a mention-like array (any field named *mention* / *entit*), the
+ *     bot counts as mentioned only when an item references the bot (ZALO_BOT_ID, or its name).
+ *  2. With no such metadata, fall back to "@<bot name>" in the text.
+ * Run with ZALO_WEBHOOK_DEBUG=1 to see which fields a real group message carries.
+ */
+function isBotMentioned(message) {
+  const botId = (process.env.ZALO_BOT_ID || '').trim();
+  const name = normalize(botName());
+  const lists = Object.keys(message || {})
+    .filter((k) => /mention|entit/i.test(k) && Array.isArray(message[k]));
+  if (lists.length) {
+    return lists.some((k) => message[k].some((item) => {
+      const raw = JSON.stringify(item || {});
+      return (botId && raw.includes(botId)) || normalize(raw).includes(name);
+    }));
+  }
+  return isMentioned(message && message.text);
 }
 
-module.exports = { normalize, isMentioned, stripMention, replyFor, COMMANDS };
+/** Fixed commands first (exact keyword), otherwise the friendly smart replies. */
+function replyFor(text) {
+  if (!isMentioned(text)) return null;
+  return answer(text);
+}
+
+function answer(rawText) {
+  const { getBotReply, stripBotMention } = require('./zaloSmartReplies');
+  const body = stripMention(stripBotMention(rawText, [botName()]));
+  const command = normalize(body);
+  if (!command) return COMMANDS.help.reply();
+  const hit = Object.keys(COMMANDS).find((key) => key === command || COMMANDS[key].aliases.includes(command));
+  return hit ? COMMANDS[hit].reply() : getBotReply(body, { websiteUrl: siteUrl() });
+}
+
+/** Reply for a webhook message, or null (stay silent) when the bot is not mentioned. */
+function replyForMessage(message) {
+  if (!message || !isBotMentioned(message)) return null;
+  return answer(message.text);
+}
+
+module.exports = { normalize, isMentioned, isBotMentioned, stripMention, replyFor, replyForMessage, COMMANDS };

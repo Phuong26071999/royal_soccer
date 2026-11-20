@@ -21,7 +21,8 @@ const crypto = require('crypto');
 const { RequestError, send, readBody } = require('./_lib/http');
 const { hitLimit } = require('./_lib/rateLimit');
 const { sendText } = require('./_lib/zaloNotify');
-const { replyForMessage } = require('./_lib/zaloBot');
+const { replyForMessage, isBotMentioned } = require('./_lib/zaloBot');
+const { loadState } = require('./_lib/soccerStore');
 
 const MAX_BODY_BYTES = 32 * 1024;
 const DEDUPE = { limit: 1, windowSeconds: 60 * 60 };
@@ -52,13 +53,15 @@ async function handleEvent(event, deps = {}) {
   const from = message.from || {};
   if (from.is_bot === true || (botId && str(from.id) === botId)) return null;
 
-  const reply = replyForMessage(message);
-  if (!reply) return null;
+  // Not addressed to the bot: stay silent without touching the dedupe store or the data.
+  if (!isBotMentioned(message)) return null;
 
-  // Only now burn the dedupe slot, so ignored messages cost nothing.
+  // Burn the dedupe slot before doing any work, so repeated deliveries cost nothing.
   const first = await dedupe(messageId);
   if (!first.allowed) return null;
-  return { chatId, text: reply };
+
+  const reply = await replyForMessage(message, { loadState: deps.loadState || loadState, now: deps.now });
+  return reply ? { chatId, text: reply } : null;
 }
 
 async function handler(req, res) {

@@ -27,16 +27,8 @@ const siteUrl = () => {
 /** key -> { aliases, reply }. Replies are functions so they read env at call time. */
 const COMMANDS = {
   help: {
-    aliases: ['trogiup', 'huongdan', 'lenh'],
-    reply: () => [
-      '🤖 CÁC LỆNH CỦA BOT',
-      '━━━━━━━━━━━━━━',
-      `Gõ @${botName()} kèm một từ khóa:`,
-      '• help — xem danh sách lệnh',
-      '• lichhen — link xem lịch đá',
-      '• website — địa chỉ website',
-      '• lienhe — thông tin liên hệ',
-    ].join('\n'),
+    aliases: ['trogiup', 'huongdan', 'lenh', 'menu'],
+    reply: () => require('./zaloSmartReplies').helpText({ websiteUrl: siteUrl() }),
   },
   lichhen: {
     aliases: ['lich', 'lichda', 'lichhendabong'],
@@ -101,22 +93,48 @@ function isBotMentioned(message) {
 /** Fixed commands first (exact keyword), otherwise the friendly smart replies. */
 function replyFor(text) {
   if (!isMentioned(text)) return null;
-  return answer(text);
+  return answer(text).text;
 }
 
-function answer(rawText) {
-  const { getBotReply, stripBotMention } = require('./zaloSmartReplies');
+/** Strips the mention and returns { body, command } where command is a fixed keyword hit, if any. */
+function parse(rawText) {
+  const { stripBotMention } = require('./zaloSmartReplies');
   const body = stripMention(stripBotMention(rawText, [botName()]));
   const command = normalize(body);
-  if (!command) return COMMANDS.help.reply();
-  const hit = Object.keys(COMMANDS).find((key) => key === command || COMMANDS[key].aliases.includes(command));
-  return hit ? COMMANDS[hit].reply() : getBotReply(body, { websiteUrl: siteUrl() });
+  return { body, command, hit: Object.keys(COMMANDS).find((key) => key === command || COMMANDS[key].aliases.includes(command)) };
 }
 
-/** Reply for a webhook message, or null (stay silent) when the bot is not mentioned. */
-function replyForMessage(message) {
+/** Synchronous answer from fixed keywords and the friendly rules (no live data). */
+function answer(rawText) {
+  const { getBotReply } = require('./zaloSmartReplies');
+  const { body, command, hit } = parse(rawText);
+  const text = !command ? COMMANDS.help.reply() : hit ? COMMANDS[hit].reply()
+    : getBotReply(body, { websiteUrl: siteUrl(), contactInfo: (process.env.ZALO_CONTACT_INFO || '').trim() });
+  return { text, body };
+}
+
+/**
+ * Reply for a webhook message, or null (stay silent) when the bot is not mentioned.
+ * Order: fixed keywords, then answers from the real data (deps.loadState), then the friendly rules.
+ * If the data cannot be loaded the bot still answers from the friendly rules.
+ */
+async function replyForMessage(message, deps = {}) {
   if (!message || !isBotMentioned(message)) return null;
-  return answer(message.text);
+  const { command, hit, body } = parse(message.text);
+  if (command && !hit && typeof deps.loadState === 'function') {
+    try {
+      const { dataReply } = require('./zaloData');
+      const found = dataReply(body, await deps.loadState(), {
+        senderName: message.from && message.from.display_name,
+        websiteUrl: siteUrl(),
+        now: deps.now,
+      });
+      if (found) return found;
+    } catch (err) {
+      console.error('[zalo-bot] could not read data for the reply');
+    }
+  }
+  return answer(message.text).text;
 }
 
 module.exports = { normalize, isMentioned, isBotMentioned, stripMention, replyFor, replyForMessage, COMMANDS };

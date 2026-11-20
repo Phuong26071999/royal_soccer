@@ -54,7 +54,7 @@ function diffMatches(before, after) {
   ];
 }
 
-async function sendText(text, fetchImpl) {
+async function sendText(text, fetchImpl, chatId) {
   const token = process.env.ZALO_BOT_TOKEN.trim();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -62,7 +62,7 @@ async function sendText(text, fetchImpl) {
     const res = await fetchImpl(`${API_BASE}/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: process.env.ZALO_GROUP_CHAT_ID.trim(), text }),
+      body: JSON.stringify({ chat_id: chatId || (process.env.ZALO_GROUP_CHAT_ID || '').trim(), text }),
       signal: controller.signal,
     });
     if (!res.ok) {
@@ -135,4 +135,4 @@ async function sendReminder(match, members, fetchImpl = globalThis.fetch) {
   }
 }
 
-module.exports = { notifyMatchChanges, diffMatches, buildMessage, formatWhen, buildReminder, sendReminder, daysUntil };
+module.exports = { sendText, notifyMatchChanges, diffMatches, buildMessage, formatWhen, buildReminder, sendReminder, daysUntil };
